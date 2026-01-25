@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xenolexia.Core", "Xenolexia.Core\Xenolexia.Core.csproj", "{E5D3DCD1-F013-4A4C-9476-AFB333F96D01}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xenolexia.Android", "Xenolexia.Android\Xenolexia.Android.csproj", "{AC2BA786-C3AF-4274-84B1-22EB2399148E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xenolexia.Linux", "Xenolexia.Linux\Xenolexia.Linux.csproj", "{6EB62E53-B7E3-4FB6-9F0C-C6792EC3A731}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E5D3DCD1-F013-4A4C-9476-AFB333F96D01}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E5D3DCD1-F013-4A4C-9476-AFB333F96D01}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E5D3DCD1-F013-4A4C-9476-AFB333F96D01}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E5D3DCD1-F013-4A4C-9476-AFB333F96D01}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AC2BA786-C3AF-4274-84B1-22EB2399148E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AC2BA786-C3AF-4274-84B1-22EB2399148E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AC2BA786-C3AF-4274-84B1-22EB2399148E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AC2BA786-C3AF-4274-84B1-22EB2399148E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6EB62E53-B7E3-4FB6-9F0C-C6792EC3A731}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6EB62E53-B7E3-4FB6-9F0C-C6792EC3A731}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6EB62E53-B7E3-4FB6-9F0C-C6792EC3A731}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6EB62E53-B7E3-4FB6-9F0C-C6792EC3A731}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
