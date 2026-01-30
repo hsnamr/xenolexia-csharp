@@ -2,30 +2,14 @@
 
 This document summarizes the implementation of the Xenolexia C# application. The product concept: read books in your language with a portion of words in the target language; hover to reveal and save to vocabulary. Implementation uses **free and open source libraries only**; features that cannot be done with FOSS are skipped.
 
-**Platforms**: Desktop (Linux, macOS, Windows) via **Xenolexia.Linux** (Avalonia); Android via Xenolexia.Android (MAUI). See **FEATURES.md** for the full feature roadmap and FOSS stack.
+**Platforms**: Desktop (Linux, macOS, Windows) via **Xenolexia.Desktop** (Avalonia). See **FEATURES.md** for the full feature roadmap and FOSS stack.
 
 ## Completed Tasks
 
-### 1. Android: Convert to Android Activity-based app with UI framework ✅
-
-- **Framework**: .NET MAUI (Multi-platform App UI)
-- **Project Structure**:
-  - `MauiProgram.cs` - Application entry point with service registration
-  - `App.xaml` / `App.xaml.cs` - Application class
-  - `AppShell.xaml` / `AppShell.xaml.cs` - Shell navigation with tabs
-  - `Views/` - XAML pages for Library, Reader, Vocabulary, and Settings
-  - `ViewModels/` - MVVM ViewModels for each view
-
-- **Features**:
-  - Tab-based navigation (Library, Reader, Vocabulary, Settings)
-  - Service dependency injection
-  - MVVM pattern implementation
-  - Basic UI for Library and Vocabulary screens
-
-### 2. Desktop (Linux, macOS, Windows): Avalonia UI ✅
+### 1. Desktop (Linux, macOS, Windows): Avalonia UI ✅
 
 - **Framework**: Avalonia UI (cross-platform); single codebase for Linux, macOS, and Windows.
-- **Project**: `Xenolexia.Linux` (name is historical; it is the cross-platform desktop app).
+- **Project**: `Xenolexia.Desktop` (cross-platform desktop app).
 - **Project Structure**:
   - `Program.cs` - Application entry point with service initialization
   - `App.xaml` / `App.xaml.cs` - Application class
@@ -41,24 +25,18 @@ This document summarizes the implementation of the Xenolexia C# application. The
   - Vocabulary screen with export (CSV, Anki, JSON)
   - Service initialization on startup; modern Avalonia UI
 
-### 3. UI Layer: MVVM ViewModels and Views ✅
+### 2. UI Layer: MVVM ViewModels and Views ✅
 
-#### Android ViewModels:
-- `BaseViewModel` - Base class with INotifyPropertyChanged
-- `LibraryViewModel` - Manages book collection and operations
-- `VocabularyViewModel` - Manages vocabulary items and export
-
-#### Linux ViewModels:
+#### Desktop ViewModels:
 - `ViewModelBase` - Base class using CommunityToolkit.Mvvm
 - `MainWindowViewModel` - Main window coordination
 - `LibraryViewModel` - Book management with async commands
 - `VocabularyViewModel` - Vocabulary management with export functionality
 
 #### Views:
-- **Android**: XAML pages with CollectionView for lists
 - **Linux**: XAML UserControls with DataGrid for tables
 
-### 4. Additional Services ✅
+### 3. Additional Services ✅
 
 #### BookDownloadService
 - **Location**: `Xenolexia.Core/Services/BookDownloadService.cs`
@@ -99,31 +77,20 @@ xenolexia-csharp/
 │       ├── ImageProcessingService.cs
 │       ├── IExportService.cs
 │       └── ExportService.cs
-├── Xenolexia.Android/       # Android MAUI app
-│   ├── MauiProgram.cs
-│   ├── App.xaml
-│   ├── AppShell.xaml
-│   ├── Views/
-│   │   ├── LibraryPage.xaml
-│   │   ├── VocabularyPage.xaml
-│   │   ├── ReaderPage.xaml
-│   │   └── SettingsPage.xaml
-│   └── ViewModels/
-│       ├── BaseViewModel.cs
-│       ├── LibraryViewModel.cs
-│       └── VocabularyViewModel.cs
-└── Xenolexia.Linux/         # Linux Avalonia app
+└── Xenolexia.Desktop/       # Desktop (Linux, macOS, Windows) — Avalonia
     ├── Program.cs
     ├── App.xaml
     ├── Views/
     │   ├── MainWindow.xaml
     │   ├── LibraryView.xaml
-    │   └── VocabularyView.xaml
+    │   ├── VocabularyView.xaml
+    │   └── AboutView.xaml
     └── ViewModels/
         ├── ViewModelBase.cs
         ├── MainWindowViewModel.cs
         ├── LibraryViewModel.cs
-        └── VocabularyViewModel.cs
+        ├── VocabularyViewModel.cs
+        └── AboutViewModel.cs
 ```
 
 ## NuGet Packages
@@ -133,12 +100,7 @@ xenolexia-csharp/
 - **System.Data.SQLite.Core** – SQLite storage
 - **Newtonsoft.Json** – JSON (e.g. Gutendex, Open Library APIs)
 
-### Android (MAUI):
-- `Microsoft.Maui.Controls` (8.0.49)
-- `Microsoft.Maui.Controls.Compatibility` (8.0.49)
-- `Microsoft.Maui.Essentials` (8.0.49)
-
-### Desktop (Xenolexia.Linux — Avalonia, Linux/macOS/Windows):
+### Desktop (Xenolexia.Desktop — Avalonia, Linux/macOS/Windows):
 - `Avalonia` (11.0.7), `Avalonia.Desktop` (11.0.7), `Avalonia.ReactiveUI` (11.0.7)
 - `Avalonia.Fonts.Inter` (11.0.7), `Avalonia.Themes.Fluent` (11.0.7)
 - `CommunityToolkit.Mvvm` (8.2.2)
@@ -148,7 +110,6 @@ xenolexia-csharp/
 ### Prerequisites:
 - .NET 8.0 SDK
 - **Desktop (Linux, macOS, Windows)**: no extra deps; Avalonia is included.
-- **Android**: Android SDK and NDK
 
 ### Build Commands:
 
@@ -156,16 +117,12 @@ xenolexia-csharp/
 dotnet restore
 
 # Desktop (Linux, macOS, Windows) — same project
-cd Xenolexia.Linux
+cd Xenolexia.Desktop
 dotnet build
 dotnet run
 
 # Core only
 cd Xenolexia.Core
-dotnet build
-
-# Android (requires Android SDK)
-cd Xenolexia.Android
 dotnet build
 ```
 
@@ -173,9 +130,9 @@ dotnet build
 
 1. **Image Processing**: The image resizing and format conversion methods are currently placeholders. For production, implement using ImageSharp or System.Drawing.
 
-2. **Service Initialization**: Linux app initializes services in `Program.cs` before starting the UI. Android app uses MAUI's dependency injection in `MauiProgram.cs`.
+2. **Service Initialization**: Desktop app initializes services in `Program.cs` before starting the UI.
 
-3. **Database / data (desktop)**: Linux, macOS, Windows use `~/.xenolexia/` (xenolexia.db, books/, exports/, covers/). Android uses app data directory.
+3. **Database / data (desktop)**: Linux, macOS, Windows use `~/.xenolexia/` (xenolexia.db, books/, exports/, covers/).
 
 ### 5. Desktop ebook reader: bookshelf, import, online libraries ✅
 
@@ -184,7 +141,7 @@ dotnet build
 - **Import from free online libraries**: "Get from online" opens a panel to search Project Gutenberg, Standard Ebooks, or Open Library. Search results show title, author, and a Download button; downloaded books are added to the library with cover when available.
 - **Ebook format support**: Core supports **EPUB**, **PDF**, **TXT**, **FB2**, and **MOBI** (import and display in library). Full parsing (chapters, TOC) is implemented for EPUB (via **VersOne.Epub**) and TXT; PDF uses metadata-only (title from filename); FB2/MOBI can be imported but full parsing is not yet implemented.
 - **Libraries over custom code**: EPUB parsing and cover extraction use **VersOne.Epub** (open source, Unlicense); custom ZIP/OPF/HTML parsing and EPubSharp/HtmlAgilityPack have been removed.
-- **Core services**: `IBookImportService` / `BookImportService` (local import and add-downloaded-book), `IFilePickerService` / `FilePickerService` (Avalonia file picker). Linux app registers these and uses them in `LibraryViewModel`.
+- **Core services**: `IBookImportService` / `BookImportService` (local import and add-downloaded-book), `IFilePickerService` / `FilePickerService` (Avalonia file picker). Desktop app registers these and uses them in `LibraryViewModel`.
 
 ### 6. About application screen ✅
 
@@ -205,7 +162,7 @@ dotnet build
 
 Desktop (Linux, macOS, or Windows):
 ```bash
-cd Xenolexia.Linux
+cd Xenolexia.Desktop
 dotnet build
 dotnet run
 ```

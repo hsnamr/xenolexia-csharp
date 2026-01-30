@@ -66,12 +66,11 @@ This document maps the product concept to implementation status and to **free an
 
 | Platform | Project | Stack |
 |----------|---------|--------|
-| **Linux** | Xenolexia.Linux | Avalonia, .NET 8 |
-| **macOS** | Xenolexia.Linux | Same Avalonia app |
-| **Windows** | Xenolexia.Linux | Same Avalonia app |
-| **Android** | Xenolexia.Android | .NET MAUI |
+| **Linux** | Xenolexia.Desktop | Avalonia, .NET 8 |
+| **macOS** | Xenolexia.Desktop | Same Avalonia app |
+| **Windows** | Xenolexia.Desktop | Same Avalonia app |
 
-The desktop app is **Xenolexia.Linux** (Avalonia). The name is historical; it is the single desktop codebase for Linux, macOS, and Windows.
+The desktop app is **Xenolexia.Desktop** (Avalonia) — single codebase for Linux, macOS, and Windows.
 
 ---
 
@@ -106,7 +105,7 @@ Planned additions (all FOSS):
 ## Build and run (desktop)
 
 ```bash
-cd Xenolexia.Linux
+cd Xenolexia.Desktop
 dotnet restore
 dotnet build
 dotnet run

@@ -13,8 +13,7 @@ Read books in your native language while learning Spanish, French, German, Japan
 
 ## Platforms
 
-- **Desktop**: Linux, macOS, Windows (single codebase: Avalonia UI, .NET 8)
-- **Android**: .NET MAUI (in progress)
+- **Desktop**: Linux, macOS, Windows (single codebase: Xenolexia.Desktop — Avalonia UI, .NET 8)
 
 All features use **free and open source libraries** only. Features that cannot be implemented with FOSS are skipped.
 
@@ -65,12 +64,11 @@ All features use **free and open source libraries** only. Features that cannot b
 ```
 xenolexia-csharp/
 ├── Xenolexia.Core/          # Shared logic (models, services)
-├── Xenolexia.Linux/         # Desktop app (Linux, macOS, Windows) — Avalonia
-├── Xenolexia.Android/       # Android app — MAUI
+├── Xenolexia.Desktop/       # Desktop app (Linux, macOS, Windows) — Avalonia
 └── README.md, IMPLEMENTATION.md, FEATURES.md
 ```
 
-- **Xenolexia.Linux** is the cross-platform desktop app (Avalonia). Run it on Linux, macOS, or Windows with the same build.
+- **Xenolexia.Desktop** is the cross-platform desktop app (Avalonia). Run it on Linux, macOS, or Windows with the same build.
 
 ---
 
@@ -78,7 +76,6 @@ xenolexia-csharp/
 
 - .NET 8 SDK  
 - **Desktop (Linux/macOS/Windows)**: no extra deps; Avalonia is included.  
-- **Android**: Android SDK/NDK for MAUI.
 
 ---
 
