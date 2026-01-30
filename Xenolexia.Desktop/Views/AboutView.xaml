@@ -11,11 +11,11 @@
             <TextBlock Text="{Binding Version}" FontSize="12" Opacity="0.8" />
             <Separator />
             <TextBlock Text="A desktop ebook reader that lets you import books from local storage and discover free books from Project Gutenberg, Standard Ebooks, and Open Library." TextWrapping="Wrap" />
-            <TextBlock Text="Supported formats: EPUB, PDF, TXT, FB2, MOBI" FontSize="12" Opacity="0.9" />
+            <TextBlock Text="Supported formats: EPUB, PDF, TXT, FB2 (via FOSS libraries only)." FontSize="12" Opacity="0.9" />
             <Separator />
             <TextBlock Text="Open source" FontWeight="SemiBold" />
-            <TextBlock Text="MIT License" FontSize="12" />
-            <TextBlock Text="Built with .NET 8, Avalonia UI, and VersOne.Epub." FontSize="12" Opacity="0.8" />
+            <TextBlock Text="GNU Affero General Public License v3 (AGPL-3.0)" FontSize="12" />
+            <TextBlock Text="Ebook support: VersOne.Epub (EPUB), PdfPig (PDF), Fb2.Document (FB2). Built with .NET and Avalonia UI." FontSize="12" Opacity="0.8" TextWrapping="Wrap" />
         </StackPanel>
     </ScrollViewer>
 </UserControl>

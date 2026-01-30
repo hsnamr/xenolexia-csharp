@@ -1,0 +1,44 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Xenolexia.Desktop.ViewModels"
+             xmlns:models="using:Xenolexia.Core.Models"
+             x:Class="Xenolexia.Desktop.Views.ReaderView"
+             x:DataType="vm:ReaderViewModel">
+
+    <Grid RowDefinitions="Auto,*">
+        <!-- Toolbar -->
+        <Border Grid.Row="0" Padding="12,8" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <Button Grid.Column="0" Content="← Back" Command="{Binding CloseCommand}" Margin="0,0,16,0" />
+                <TextBlock Grid.Column="1" Text="{Binding BookTitle}" FontWeight="SemiBold" FontSize="16"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                    <Button Content="Previous" Command="{Binding PreviousChapterCommand}" />
+                    <ComboBox ItemsSource="{Binding Chapters}" SelectedIndex="{Binding CurrentChapterIndex}"
+                              MinWidth="200" HorizontalAlignment="Right">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate DataType="models:Chapter">
+                                <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <Button Content="Next" Command="{Binding NextChapterCommand}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Content -->
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
+                     IsVisible="{Binding NotLoading}">
+            <StackPanel Margin="32,24" MaxWidth="720">
+                <TextBlock Text="{Binding CurrentChapterTitle}" FontSize="22" FontWeight="Bold" Margin="0,0,0,16"
+                           IsVisible="{Binding HasChapters}" />
+                <TextBlock Text="{Binding CurrentChapterContent}" TextWrapping="Wrap" LineHeight="28" FontSize="16" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <TextBlock Grid.Row="1" Text="{Binding Error}" Foreground="Red" Margin="24" IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <ProgressBar Grid.Row="1" IsIndeterminate="True" IsVisible="{Binding IsLoading}" VerticalAlignment="Top" Margin="24" />
+    </Grid>
+</UserControl>

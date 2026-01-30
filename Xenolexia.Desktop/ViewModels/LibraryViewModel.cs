@@ -110,7 +110,7 @@ public partial class LibraryViewModel : ViewModelBase
             new FilePickerFilter
             {
                 Name = "Ebooks",
-                Extensions = new[] { "epub", "pdf", "txt", "fb2", "mobi", "azw", "azw3" }
+                Extensions = new[] { "epub", "pdf", "txt", "fb2" }
             }
         });
         if (string.IsNullOrEmpty(path))
@@ -120,7 +120,7 @@ public partial class LibraryViewModel : ViewModelBase
         {
             if (!BookImportService.IsSupportedFormat(path))
             {
-                ImportError = "Unsupported format. Use EPUB, PDF, TXT, FB2, or MOBI.";
+                ImportError = "Unsupported format. Use EPUB, PDF, TXT, or FB2.";
                 return;
             }
 
@@ -223,6 +223,12 @@ public partial class LibraryViewModel : ViewModelBase
             IsDownloading = false;
             DownloadProgressPercent = 0;
         }
+    }
+
+    [RelayCommand]
+    private void OpenBook(Book book)
+    {
+        BookNavigation.RequestOpenBook(book);
     }
 
     [RelayCommand]

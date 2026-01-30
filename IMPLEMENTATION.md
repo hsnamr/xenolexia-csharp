@@ -93,10 +93,25 @@ xenolexia-csharp/
         └── AboutViewModel.cs
 ```
 
+## Ebook format support (FOSS libraries only)
+
+All format support is implemented with free and open source libraries; no custom format parsing.
+
+| Format | Library | License | Use |
+|--------|---------|---------|-----|
+| **EPUB** | [VersOne.Epub](https://github.com/vers-one/epub) (3.3.4) | MIT | Read, metadata, TOC, chapters, cover |
+| **PDF** | [PdfPig](https://github.com/UglyToad/PdfPig) (0.1.13) | Apache 2.0 | Read, text extraction, metadata |
+| **TXT** | .NET BCL (`File.ReadAllTextAsync`) | N/A | Read, single chapter |
+| **FB2** | [Fb2.Document](https://github.com/Overrided/Fb2.Document) (2.5.0) | MIT | Read, metadata, sections/chapters |
+
+**Omitted (no suitable FOSS library for full-text reading):** MOBI/AZW (no .NET FOSS library for full content extraction), PS/PostScript.
+
 ## NuGet Packages
 
 ### Core Library:
-- **VersOne.Epub** (3.3.4) – EPUB reading: metadata, TOC, chapters, cover extraction (replaces custom EPUB/OPF parsing and EPubSharp/HtmlAgilityPack)
+- **VersOne.Epub** (3.3.4) – EPUB reading: metadata, TOC, chapters, cover extraction
+- **PdfPig** (0.1.13) – PDF text extraction and metadata (Apache 2.0)
+- **Fb2.Document** (2.5.0) – FictionBook 2 (FB2) read and metadata (MIT)
 - **System.Data.SQLite.Core** – SQLite storage
 - **Newtonsoft.Json** – JSON (e.g. Gutendex, Open Library APIs)
 

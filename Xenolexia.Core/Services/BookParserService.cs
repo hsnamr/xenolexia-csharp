@@ -1,10 +1,15 @@
+using System.Text;
+using Fb2.Document.Constants;
 using Xenolexia.Core.Models;
 using VersOne.Epub;
+using UglyToad.PdfPig;
 
 namespace Xenolexia.Core.Services;
 
 /// <summary>
-/// Book parser service using VersOne.Epub for EPUB and minimal custom logic for TXT/PDF.
+/// Book parser service. All format support is implemented via free/open source libraries:
+/// EPUB = VersOne.Epub, TXT = .NET BCL, PDF = PdfPig (Apache 2.0), FB2 = Fb2.Document (MIT).
+/// MOBI/PS are not supported (no suitable FOSS library for full-text reading).
 /// </summary>
 public class BookParserService : IBookParserService
 {
@@ -56,6 +61,10 @@ public class BookParserService : IBookParserService
                 Subjects = new List<string>()
             };
         }
+        if (format == BookFormat.Pdf)
+            return await GetPdfMetadataAsync(filePath);
+        if (format == BookFormat.Fb2)
+            return await GetFb2MetadataAsync(filePath);
         var parsed = await ParseBookAsync(filePath);
         return parsed.Metadata;
     }
@@ -136,16 +145,179 @@ public class BookParserService : IBookParserService
         };
     }
 
-    private static ParsedBook ParsePdfMetadataOnly(string filePath)
+    private static async Task<ParsedBook> ParsePdfAsync(string filePath)
     {
-        var title = Path.GetFileNameWithoutExtension(filePath);
+        await Task.Yield();
+        using var document = PdfDocument.Open(filePath);
+        var info = document.Information;
+        var metadata = new BookMetadata
+        {
+            Title = info.GetTitle() ?? Path.GetFileNameWithoutExtension(filePath),
+            Author = info.GetAuthor(),
+            Subjects = new List<string>()
+        };
+        var sb = new StringBuilder();
+        foreach (var page in document.GetPages())
+        {
+            var text = page.Text;
+            if (!string.IsNullOrEmpty(text))
+                sb.AppendLine(text);
+        }
+        var content = sb.ToString().Trim();
+        var wordCount = content.Split(new[] { ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries).Length;
+        var chapters = new List<Chapter>();
+        if (wordCount > 0)
+        {
+            chapters.Add(new Chapter
+            {
+                Id = "chapter-0",
+                Title = "Content",
+                Index = 0,
+                Content = content,
+                WordCount = wordCount
+            });
+        }
         return new ParsedBook
         {
-            Metadata = new BookMetadata { Title = title },
-            Chapters = new List<Chapter>(),
+            Metadata = metadata,
+            Chapters = chapters,
             TableOfContents = new List<TableOfContentsItem>(),
-            TotalWordCount = 0
+            TotalWordCount = wordCount
         };
+    }
+
+    private static async Task<BookMetadata> GetPdfMetadataAsync(string filePath)
+    {
+        await Task.Yield();
+        using var document = PdfDocument.Open(filePath);
+        var info = document.Information;
+        return new BookMetadata
+        {
+            Title = info.GetTitle() ?? Path.GetFileNameWithoutExtension(filePath),
+            Author = info.GetAuthor(),
+            Subjects = new List<string>()
+        };
+    }
+
+    private static async Task<ParsedBook> ParseFb2Async(string filePath)
+    {
+        var doc = new Fb2.Document.Fb2Document();
+        await using (var stream = File.OpenRead(filePath))
+            await doc.LoadAsync(stream);
+        var metadata = await GetFb2MetadataFromDocumentAsync(doc, filePath);
+        var chapters = new List<Chapter>();
+        var body = doc.Book?.GetFirstDescendant(ElementNames.BookBody) as Fb2.Document.Models.Containers.Fb2Container;
+        if (body != null)
+        {
+            var sections = body.GetDescendants(ElementNames.BookBodySection).ToList();
+            var index = 0;
+            foreach (var section in sections)
+            {
+                if (section is not Fb2.Document.Models.Containers.Fb2Container sectionContainer)
+                    continue;
+                var titleNode = sectionContainer.GetFirstChild(ElementNames.Title);
+                var title = titleNode is Fb2.Document.Models.Elements.Fb2Element titleEl
+                    ? titleEl.Content
+                    : $"Section {index + 1}";
+                var sb = new StringBuilder();
+                foreach (var p in sectionContainer.GetDescendants(ElementNames.Paragraph))
+                {
+                    if (p is Fb2.Document.Models.Containers.Fb2Container pContainer)
+                        AppendTextFromNode(pContainer, sb);
+                    else if (p is Fb2.Document.Models.Elements.Fb2Element pel && !string.IsNullOrWhiteSpace(pel.Content))
+                        sb.AppendLine(pel.Content);
+                }
+                var content = sb.ToString().Trim();
+                var wordCount = content.Split(new[] { ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries).Length;
+                chapters.Add(new Chapter
+                {
+                    Id = $"chapter-{index}",
+                    Title = title,
+                    Index = index,
+                    Content = content,
+                    WordCount = wordCount
+                });
+                index++;
+            }
+            if (chapters.Count == 0)
+            {
+                var fullText = new StringBuilder();
+                foreach (var p in body.GetDescendants(ElementNames.Paragraph))
+                {
+                    if (p is Fb2.Document.Models.Containers.Fb2Container pContainer)
+                        AppendTextFromNode(pContainer, fullText);
+                    else if (p is Fb2.Document.Models.Elements.Fb2Element pel && !string.IsNullOrWhiteSpace(pel.Content))
+                        fullText.AppendLine(pel.Content);
+                }
+                var ct = fullText.ToString().Trim();
+                var wc = ct.Split(new[] { ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries).Length;
+                chapters.Add(new Chapter
+                {
+                    Id = "chapter-0",
+                    Title = "Content",
+                    Index = 0,
+                    Content = ct,
+                    WordCount = wc
+                });
+            }
+        }
+        return new ParsedBook
+        {
+            Metadata = metadata,
+            Chapters = chapters,
+            TableOfContents = new List<TableOfContentsItem>(),
+            TotalWordCount = chapters.Sum(c => c.WordCount)
+        };
+    }
+
+    private static async Task<BookMetadata> GetFb2MetadataAsync(string filePath)
+    {
+        var doc = new Fb2.Document.Fb2Document();
+        await using (var stream = File.OpenRead(filePath))
+            await doc.LoadAsync(stream);
+        return await GetFb2MetadataFromDocumentAsync(doc);
+    }
+
+    private static Task<BookMetadata> GetFb2MetadataFromDocumentAsync(Fb2.Document.Fb2Document doc, string? filePath = null)
+    {
+        var title = !string.IsNullOrEmpty(filePath) ? Path.GetFileNameWithoutExtension(filePath) : "Unknown";
+        var author = (string?)null;
+        var titleInfo = doc.Book?.GetFirstDescendant(ElementNames.TitleInfo);
+        if (titleInfo is Fb2.Document.Models.Containers.Fb2Container titleContainer)
+        {
+            var titleEl = titleContainer.GetFirstChild(ElementNames.BookTitle) as Fb2.Document.Models.Elements.Fb2Element;
+            if (titleEl != null)
+                title = titleEl.Content;
+            var authorEl = titleContainer.GetFirstChild(ElementNames.Author) as Fb2.Document.Models.Containers.Fb2Container;
+            if (authorEl != null)
+            {
+                var parts = new List<string>();
+                var fn = authorEl.GetFirstChild(ElementNames.FirstName) as Fb2.Document.Models.Elements.Fb2Element;
+                var ln = authorEl.GetFirstChild(ElementNames.LastName) as Fb2.Document.Models.Elements.Fb2Element;
+                if (fn != null) parts.Add(fn.Content);
+                if (ln != null) parts.Add(ln.Content);
+                if (parts.Count > 0)
+                    author = string.Join(" ", parts);
+            }
+        }
+        return Task.FromResult(new BookMetadata
+        {
+            Title = title,
+            Author = author,
+            Subjects = new List<string>()
+        });
+    }
+
+    private static void AppendTextFromNode(Fb2.Document.Models.Containers.Fb2Container container, StringBuilder sb)
+    {
+        foreach (var node in container.Content)
+        {
+            if (node is Fb2.Document.Models.Elements.Fb2Element el && !string.IsNullOrWhiteSpace(el.Content))
+                sb.Append(el.Content);
+            else if (node is Fb2.Document.Models.Containers.Fb2Container child)
+                AppendTextFromNode(child, sb);
+        }
+        sb.AppendLine();
     }
 
     private static async Task<ParsedBook> ParseTxtAsync(string filePath)

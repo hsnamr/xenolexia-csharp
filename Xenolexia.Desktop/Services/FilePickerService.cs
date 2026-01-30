@@ -40,7 +40,7 @@ public class FilePickerService : IFilePickerService
             {
                 new("Ebooks")
                 {
-                    Patterns = new[] { "*.epub", "*.pdf", "*.txt", "*.fb2", "*.mobi", "*.azw", "*.azw3" }
+                    Patterns = new[] { "*.epub", "*.pdf", "*.txt", "*.fb2" }
                 }
             }
         };

@@ -10,7 +10,7 @@
         Width="1000" Height="700">
 
     <Grid RowDefinitions="Auto,*">
-        <TabControl Grid.Row="1" Margin="10">
+        <TabControl Grid.Row="1" Margin="10" IsVisible="{Binding ShowTabs}">
             <TabItem Header="Library">
                 <ContentControl Content="{Binding LibraryView}" />
             </TabItem>
@@ -26,5 +26,6 @@
                 <ContentControl Content="{Binding AboutView}" />
             </TabItem>
         </TabControl>
+        <ContentControl Grid.Row="1" Content="{Binding ReaderView}" IsVisible="{Binding IsReaderVisible}" />
     </Grid>
 </Window>

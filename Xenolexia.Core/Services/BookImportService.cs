@@ -6,7 +6,7 @@ namespace Xenolexia.Core.Services;
 
 /// <summary>
 /// Imports books from local storage into the app library.
-/// Supports EPUB, PDF, TXT, FB2, and MOBI (metadata extraction for EPUB, PDF, TXT).
+/// Supports EPUB, PDF, TXT, FB2 via FOSS libraries (VersOne.Epub, PdfPig, .NET BCL, Fb2.Document). MOBI omitted (no FOSS full-text library).
 /// </summary>
 public class BookImportService : IBookImportService
 {
@@ -18,7 +18,7 @@ public class BookImportService : IBookImportService
 
     private static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".epub", ".pdf", ".txt", ".fb2", ".mobi", ".azw", ".azw3"
+        ".epub", ".pdf", ".txt", ".fb2"
     };
 
     public BookImportService(
