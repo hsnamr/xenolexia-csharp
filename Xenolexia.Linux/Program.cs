@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.ReactiveUI;
 using Xenolexia.Core.Services;
+using Xenolexia.Linux.Services;
 using Xenolexia.Linux.ViewModels;
 using Xenolexia.Linux.Views;
 
@@ -68,29 +70,45 @@ class Program
         Directory.CreateDirectory(coversDir);
         Directory.CreateDirectory(exportDir);
 
+        var bookImportService = new BookImportService(
+            booksDir,
+            coversDir,
+            storageService,
+            new BookParserService(),
+            new ImageProcessingService());
+
+        TopLevel? GetMainWindow() =>
+            (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+
+        var filePickerService = new FilePickerService(GetMainWindow);
+
         // Create service provider (simplified - in production use DI container)
-        ServiceProvider = new ServiceProvider(
+        ServiceProvider = new XenolexiaServiceProvider(
             storageService,
             new TranslationService(),
             new BookParserService(),
             new BookDownloadService(booksDir),
             new ImageProcessingService(),
-            new ExportService(exportDir));
+            new ExportService(exportDir),
+            bookImportService,
+            filePickerService);
     }
 }
 
 // Simple service provider for dependency injection
-public class ServiceProvider : IServiceProvider
+public class XenolexiaServiceProvider : IServiceProvider
 {
     private readonly Dictionary<Type, object> _services = new();
 
-    public ServiceProvider(
+    public XenolexiaServiceProvider(
         IStorageService storageService,
         ITranslationService translationService,
         IBookParserService bookParserService,
         IBookDownloadService bookDownloadService,
         IImageProcessingService imageProcessingService,
-        IExportService exportService)
+        IExportService exportService,
+        IBookImportService bookImportService,
+        IFilePickerService filePickerService)
     {
         _services[typeof(IStorageService)] = storageService;
         _services[typeof(ITranslationService)] = translationService;
@@ -98,6 +116,8 @@ public class ServiceProvider : IServiceProvider
         _services[typeof(IBookDownloadService)] = bookDownloadService;
         _services[typeof(IImageProcessingService)] = imageProcessingService;
         _services[typeof(IExportService)] = exportService;
+        _services[typeof(IBookImportService)] = bookImportService;
+        _services[typeof(IFilePickerService)] = filePickerService;
     }
 
     public object? GetService(Type serviceType)

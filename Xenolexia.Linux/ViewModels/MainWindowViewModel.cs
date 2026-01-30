@@ -23,8 +23,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
         LibraryView = new LibraryView();
         VocabularyView = new VocabularyView();
+        AboutView = new AboutView();
     }
 
     public LibraryView LibraryView { get; }
     public VocabularyView VocabularyView { get; }
+    public AboutView AboutView { get; }
 }

@@ -420,6 +420,7 @@ public class BookDownloadService : IBookDownloadService
         if (lower.EndsWith(".epub")) return BookFormat.Epub;
         if (lower.EndsWith(".fb2")) return BookFormat.Fb2;
         if (lower.EndsWith(".mobi") || lower.EndsWith(".azw") || lower.EndsWith(".azw3")) return BookFormat.Mobi;
+        if (lower.EndsWith(".pdf")) return BookFormat.Pdf;
         if (lower.EndsWith(".txt")) return BookFormat.Txt;
         return null;
     }

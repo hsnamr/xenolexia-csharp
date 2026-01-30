@@ -122,10 +122,12 @@ xenolexia-csharp/
         └── VocabularyViewModel.cs
 ```
 
-## NuGet Packages Added
+## NuGet Packages
 
 ### Core Library:
-- `SixLabors.ImageSharp` (removed - using placeholder implementation for now)
+- **VersOne.Epub** (3.3.4) – EPUB reading: metadata, TOC, chapters, cover extraction (replaces custom EPUB/OPF parsing and EPubSharp/HtmlAgilityPack)
+- **System.Data.SQLite.Core** – SQLite storage
+- **Newtonsoft.Json** – JSON (e.g. Gutendex, Open Library APIs)
 
 ### Android (MAUI):
 - `Microsoft.Maui.Controls` (8.0.49)
@@ -187,18 +189,29 @@ dotnet build
    - Linux: `~/.xenolexia/books/`
    - Android: App data directory
 
+### 5. Desktop ebook reader: bookshelf, import, online libraries ✅
+
+- **Bookshelf home screen**: Library tab shows a grid of book cards (cover placeholder, title, author, progress). Right-click to remove from library.
+- **Import from local storage**: "Import from file" opens a file picker; supported formats: EPUB, PDF, TXT, FB2, MOBI. Files are copied to `~/.xenolexia/books/`, metadata and cover extracted when possible, and the book is added to the library.
+- **Import from free online libraries**: "Get from online" opens a panel to search Project Gutenberg, Standard Ebooks, or Open Library. Search results show title, author, and a Download button; downloaded books are added to the library with cover when available.
+- **Ebook format support**: Core supports **EPUB**, **PDF**, **TXT**, **FB2**, and **MOBI** (import and display in library). Full parsing (chapters, TOC) is implemented for EPUB (via **VersOne.Epub**) and TXT; PDF uses metadata-only (title from filename); FB2/MOBI can be imported but full parsing is not yet implemented.
+- **Libraries over custom code**: EPUB parsing and cover extraction use **VersOne.Epub** (open source, Unlicense); custom ZIP/OPF/HTML parsing and EPubSharp/HtmlAgilityPack have been removed.
+- **Core services**: `IBookImportService` / `BookImportService` (local import and add-downloaded-book), `IFilePickerService` / `FilePickerService` (Avalonia file picker). Linux app registers these and uses them in `LibraryViewModel`.
+
+### 6. About application screen ✅
+
+- **About tab**: New tab in the main window shows app name, tagline, version (from assembly), short description, supported formats, license (MIT), and credits (e.g. .NET 8, Avalonia UI, VersOne.Epub).
+
 ## Next Steps
 
 1. Implement full image processing with ImageSharp
-2. Add file picker for book import (Android and Linux)
-3. Implement Reader screen with EPUB rendering
-4. Add book download UI with search functionality
-5. Implement vocabulary review/flashcard system
-6. Add settings screen with language pair configuration
-7. Implement SM-2 spaced repetition algorithm in StorageService
-8. Add error handling and user feedback (toasts, dialogs)
-9. Add unit tests for services
-10. Polish UI/UX for both platforms
+2. Implement Reader screen with EPUB/PDF rendering
+3. Implement vocabulary review/flashcard system
+4. Add settings screen with language pair configuration
+5. Implement SM-2 spaced repetition algorithm in StorageService
+6. Add error handling and user feedback (toasts, dialogs)
+7. Add unit tests for services
+8. Polish UI/UX for both platforms
 
 ## Testing
 

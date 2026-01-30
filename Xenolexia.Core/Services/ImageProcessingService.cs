@@ -1,12 +1,10 @@
-using System.IO.Compression;
 using System.Net.Http;
-using System.Xml.Linq;
+using VersOne.Epub;
 
 namespace Xenolexia.Core.Services;
 
 /// <summary>
-/// Image processing service implementation
-/// Handles cover extraction from EPUB files and image manipulation
+/// Image processing using VersOne.Epub for EPUB cover extraction and HttpClient for URL covers.
 /// </summary>
 public class ImageProcessingService : IImageProcessingService
 {
@@ -24,75 +22,16 @@ public class ImageProcessingService : IImageProcessingService
 
         try
         {
-            using var zip = ZipFile.OpenRead(epubPath);
-
-            // Read container.xml to find OPF file
-            var containerEntry = zip.GetEntry("META-INF/container.xml");
-            if (containerEntry == null)
-                return null;
-
-            var containerXml = await ReadZipEntryAsync(containerEntry);
-            var containerDoc = XDocument.Parse(containerXml);
-            var opfPath = containerDoc.Descendants()
-                .FirstOrDefault(e => e.Name.LocalName == "rootfile")?
-                .Attribute("full-path")?.Value;
-
-            if (string.IsNullOrEmpty(opfPath))
-                return null;
-
-            // Read OPF file
-            var opfEntry = zip.GetEntry(opfPath);
-            if (opfEntry == null)
-                return null;
-
-            var opfXml = await ReadZipEntryAsync(opfEntry);
-            var opfDoc = XDocument.Parse(opfXml);
-            var ns = opfDoc.Root?.GetDefaultNamespace() ?? XNamespace.None;
-
-            // Find cover image reference
-            var metadata = opfDoc.Descendants(ns + "metadata").FirstOrDefault();
-            var coverMeta = metadata?.Elements()
-                .FirstOrDefault(e => e.Attribute("name")?.Value == "cover");
-
-            if (coverMeta == null)
-                return null;
-
-            var coverId = coverMeta.Attribute("content")?.Value;
-            if (string.IsNullOrEmpty(coverId))
-                return null;
-
-            // Find manifest item with cover ID
-            var manifest = opfDoc.Descendants(ns + "manifest").FirstOrDefault();
-            var coverItem = manifest?.Elements(ns + "item")
-                .FirstOrDefault(i => i.Attribute("id")?.Value == coverId);
-
-            if (coverItem == null)
-                return null;
-
-            var coverHref = coverItem.Attribute("href")?.Value;
-            if (string.IsNullOrEmpty(coverHref))
-                return null;
-
-            // Resolve relative path
-            var opfDir = Path.GetDirectoryName(opfPath)?.Replace('\\', '/');
-            var coverPath = opfDir != null && !string.IsNullOrEmpty(opfDir)
-                ? $"{opfDir}/{coverHref}".Replace("//", "/")
-                : coverHref;
-
-            // Extract cover image
-            var coverEntry = zip.GetEntry(coverPath);
-            if (coverEntry == null)
+            using var bookRef = await EpubReader.OpenBookAsync(epubPath);
+            var coverBytes = await bookRef.ReadCoverAsync();
+            if (coverBytes == null || coverBytes.Length == 0)
                 return null;
 
             Directory.CreateDirectory(outputDirectory);
             var bookId = Path.GetFileNameWithoutExtension(epubPath);
-            var extension = Path.GetExtension(coverHref).ToLowerInvariant();
+            var extension = ".jpg";
             var outputPath = Path.Combine(outputDirectory, $"{bookId}_cover{extension}");
-
-            using var coverStream = coverEntry.Open();
-            using var fileStream = File.Create(outputPath);
-            await coverStream.CopyToAsync(fileStream);
-
+            await File.WriteAllBytesAsync(outputPath, coverBytes);
             return outputPath;
         }
         catch (Exception ex)
@@ -113,8 +52,8 @@ public class ImageProcessingService : IImageProcessingService
             response.EnsureSuccessStatusCode();
 
             Directory.CreateDirectory(outputDirectory);
-            var extension = Path.GetExtension(coverUrl).ToLowerInvariant();
-            if (string.IsNullOrEmpty(extension) || !extension.StartsWith("."))
+            var extension = Path.GetExtension(new Uri(coverUrl).LocalPath).ToLowerInvariant();
+            if (string.IsNullOrEmpty(extension) || extension.Length > 4)
                 extension = ".jpg";
 
             var outputPath = Path.Combine(outputDirectory, $"{bookId}_cover{extension}");
@@ -132,51 +71,38 @@ public class ImageProcessingService : IImageProcessingService
         }
     }
 
-    public async Task<string?> ResizeImageAsync(string imagePath, int maxWidth, int maxHeight, string outputPath)
+    public Task<string?> ResizeImageAsync(string imagePath, int maxWidth, int maxHeight, string outputPath)
     {
-        // TODO: Implement image resizing using ImageSharp or System.Drawing
-        // For now, just copy the file
         if (!File.Exists(imagePath))
-            return null;
-
+            return Task.FromResult<string?>(null);
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
             File.Copy(imagePath, outputPath, true);
-            return outputPath;
+            return Task.FromResult<string?>(outputPath);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error resizing image: {ex.Message}");
-            return null;
+            return Task.FromResult<string?>(null);
         }
     }
 
-    public async Task<string?> ConvertImageFormatAsync(string imagePath, string outputPath, ImageFormat format)
+    public Task<string?> ConvertImageFormatAsync(string imagePath, string outputPath, ImageFormat format)
     {
-        // TODO: Implement image format conversion using ImageSharp
-        // For now, just copy the file
         if (!File.Exists(imagePath))
-            return null;
-
+            return Task.FromResult<string?>(null);
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
             File.Copy(imagePath, outputPath, true);
-            return outputPath;
+            return Task.FromResult<string?>(outputPath);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error converting image: {ex.Message}");
-            return null;
+            return Task.FromResult<string?>(null);
         }
-    }
-
-    private async Task<string> ReadZipEntryAsync(ZipArchiveEntry entry)
-    {
-        using var stream = entry.Open();
-        using var reader = new StreamReader(stream);
-        return await reader.ReadToEndAsync();
     }
 
     public void Dispose()

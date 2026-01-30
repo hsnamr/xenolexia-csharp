@@ -1,13 +1,14 @@
 namespace Xenolexia.Core.Models;
 
 /// <summary>
-/// Supported book formats
+/// Popular ebook formats supported by the app (EPUB, PDF, TXT, FB2, MOBI).
 /// </summary>
 public enum BookFormat
 {
     Epub,
     Fb2,
     Mobi,
+    Pdf,
     Txt
 }
 

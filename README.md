@@ -23,10 +23,11 @@ xenolexia-csharp/
 
 ## Features
 
-- 📖 **EPUB Book Parsing**: Extract chapters, metadata, and table of contents
+- 📖 **Ebook formats**: EPUB, PDF, TXT, FB2, MOBI (import and library); full parsing for EPUB (VersOne.Epub) and TXT
+- 📚 **Bookshelf**: Import from local storage (file picker) and discover/add books from free online libraries (Project Gutenberg, Standard Ebooks, Open Library); add/delete books on the bookshelf
+- ℹ️ **About**: Application info, version, license, and credits
 - 🌍 **Multi-language Translation**: Support for 28+ languages via LibreTranslate API
 - 💾 **SQLite Storage**: Local database for books and vocabulary
-- 📚 **Library Management**: Add, update, and delete books
 - 📝 **Vocabulary Building**: Save and review words with spaced repetition
 
 ## Prerequisites
