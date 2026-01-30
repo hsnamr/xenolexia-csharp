@@ -1,6 +1,8 @@
 # Implementation Summary
 
-This document summarizes the implementation of the Xenolexia C# application with Android and Linux GUI support.
+This document summarizes the implementation of the Xenolexia C# application. The product concept: read books in your language with a portion of words in the target language; hover to reveal and save to vocabulary. Implementation uses **free and open source libraries only**; features that cannot be done with FOSS are skipped.
+
+**Platforms**: Desktop (Linux, macOS, Windows) via **Xenolexia.Linux** (Avalonia); Android via Xenolexia.Android (MAUI). See **FEATURES.md** for the full feature roadmap and FOSS stack.
 
 ## Completed Tasks
 
@@ -20,22 +22,24 @@ This document summarizes the implementation of the Xenolexia C# application with
   - MVVM pattern implementation
   - Basic UI for Library and Vocabulary screens
 
-### 2. Linux: Add GUI framework ✅
+### 2. Desktop (Linux, macOS, Windows): Avalonia UI ✅
 
-- **Framework**: Avalonia UI (cross-platform, modern)
+- **Framework**: Avalonia UI (cross-platform); single codebase for Linux, macOS, and Windows.
+- **Project**: `Xenolexia.Linux` (name is historical; it is the cross-platform desktop app).
 - **Project Structure**:
   - `Program.cs` - Application entry point with service initialization
   - `App.xaml` / `App.xaml.cs` - Application class
   - `Views/MainWindow.xaml` - Main window with tabbed interface
-  - `Views/LibraryView.xaml` - Library view with DataGrid
-  - `Views/VocabularyView.xaml` - Vocabulary view with DataGrid
-  - `ViewModels/` - MVVM ViewModels using CommunityToolkit.Mvvm
+  - `Views/LibraryView.xaml` - Library (bookshelf grid), import, online discover
+  - `Views/VocabularyView.xaml` - Vocabulary list, export
+  - `Views/AboutView.xaml` - About (version, license, credits)
+  - `ViewModels/` - MVVM using CommunityToolkit.Mvvm
 
 - **Features**:
-  - Tab-based interface (Library, Vocabulary, Settings)
-  - DataGrid for displaying books and vocabulary
-  - Service initialization on startup
-  - Modern Avalonia UI styling
+  - Tab-based interface (Library, Vocabulary, Settings, About)
+  - Bookshelf grid, import from file, discover (Gutenberg, Standard Ebooks, Open Library)
+  - Vocabulary screen with export (CSV, Anki, JSON)
+  - Service initialization on startup; modern Avalonia UI
 
 ### 3. UI Layer: MVVM ViewModels and Views ✅
 
@@ -134,40 +138,34 @@ xenolexia-csharp/
 - `Microsoft.Maui.Controls.Compatibility` (8.0.49)
 - `Microsoft.Maui.Essentials` (8.0.49)
 
-### Linux (Avalonia):
-- `Avalonia` (11.0.7)
-- `Avalonia.Desktop` (11.0.7)
-- `Avalonia.ReactiveUI` (11.0.7)
-- `Avalonia.Fonts.Inter` (11.0.7)
-- `Avalonia.Themes.Fluent` (11.0.7)
+### Desktop (Xenolexia.Linux — Avalonia, Linux/macOS/Windows):
+- `Avalonia` (11.0.7), `Avalonia.Desktop` (11.0.7), `Avalonia.ReactiveUI` (11.0.7)
+- `Avalonia.Fonts.Inter` (11.0.7), `Avalonia.Themes.Fluent` (11.0.7)
 - `CommunityToolkit.Mvvm` (8.2.2)
 
 ## Building and Running
 
 ### Prerequisites:
 - .NET 8.0 SDK
-- For Android: Android SDK and Android NDK
-- For Linux: Avalonia UI runtime dependencies
+- **Desktop (Linux, macOS, Windows)**: no extra deps; Avalonia is included.
+- **Android**: Android SDK and NDK
 
 ### Build Commands:
 
 ```bash
-# Restore packages
 dotnet restore
 
-# Build Core library
+# Desktop (Linux, macOS, Windows) — same project
+cd Xenolexia.Linux
+dotnet build
+dotnet run
+
+# Core only
 cd Xenolexia.Core
 dotnet build
 
-# Build Linux app
-cd ../Xenolexia.Linux
-dotnet build
-
-# Run Linux app
-dotnet run
-
-# Build Android app (requires Android SDK)
-cd ../Xenolexia.Android
+# Android (requires Android SDK)
+cd Xenolexia.Android
 dotnet build
 ```
 
@@ -177,17 +175,7 @@ dotnet build
 
 2. **Service Initialization**: Linux app initializes services in `Program.cs` before starting the UI. Android app uses MAUI's dependency injection in `MauiProgram.cs`.
 
-3. **Database Location**:
-   - Linux: `~/.xenolexia/xenolexia.db`
-   - Android: App data directory (via `FileSystem.AppDataDirectory`)
-
-4. **Export Directory**:
-   - Linux: `~/.xenolexia/exports/`
-   - Android: App data directory
-
-5. **Books Directory**:
-   - Linux: `~/.xenolexia/books/`
-   - Android: App data directory
+3. **Database / data (desktop)**: Linux, macOS, Windows use `~/.xenolexia/` (xenolexia.db, books/, exports/, covers/). Android uses app data directory.
 
 ### 5. Desktop ebook reader: bookshelf, import, online libraries ✅
 
@@ -202,24 +190,23 @@ dotnet build
 
 - **About tab**: New tab in the main window shows app name, tagline, version (from assembly), short description, supported formats, license (MIT), and credits (e.g. .NET 8, Avalonia UI, VersOne.Epub).
 
-## Next Steps
+## Next Steps (see FEATURES.md for full roadmap)
 
-1. Implement full image processing with ImageSharp
-2. Implement Reader screen with EPUB/PDF rendering
-3. Implement vocabulary review/flashcard system
-4. Add settings screen with language pair configuration
-5. Implement SM-2 spaced repetition algorithm in StorageService
-6. Add error handling and user feedback (toasts, dialogs)
-7. Add unit tests for services
-8. Polish UI/UX for both platforms
+1. **Reader screen**: EPUB/TXT rendering with customizable fonts, themes (light/dark/sepia), margins, line spacing; persist progress on exit.
+2. **Hover-to-reveal**: Translation popup on hover in reader; integrate ITranslationService (LibreTranslate; add MyMemory/Lingva as fallbacks).
+3. **SM-2 spaced repetition**: Implement in Core; store interval/ease in VocabularyItem.
+4. **Frequency-based word selection**: Use open word lists (FOSS) in TranslationEngine.
+5. **Translation cache**: SQLite table for translations; use when offline.
+6. **Settings screen**: Language pair, proficiency, word density.
+7. **Vocabulary review**: Flashcard-style review view.
+8. **Error handling and UX**: Toasts/dialogs; unit tests for services.
 
 ## Testing
 
-To test the Linux build:
+Desktop (Linux, macOS, or Windows):
 ```bash
 cd Xenolexia.Linux
 dotnet build
 dotnet run
 ```
-
-The application should start with a tabbed interface showing Library and Vocabulary views.
+The app starts with a tabbed interface: Library (bookshelf, import, discover), Vocabulary, Settings, About.

@@ -1,74 +1,118 @@
-# Xenolexia - C# Implementation
+# Xenolexia
 
 > *Learn languages through the stories you love*
 
-This is a .NET Core/C# reimplementation of the Xenolexia React Native application, targeting Android and Linux platforms.
+Read books in your native language while learning Spanish, French, German, Japanese, or any of **28+ supported languages**. A portion of words (based on your level and density settings) appear in the target language. You infer meaning from context; hovering shows the original word and lets you save it to your vocabulary.
 
-## Project Structure
+**Example (English → Spanish, beginner):**
 
-```
-xenolexia-csharp/
-├── Xenolexia.Core/          # Shared core library
-│   ├── Models/              # Domain models (Book, Vocabulary, Language, etc.)
-│   └── Services/            # Business logic services
-│       ├── IStorageService.cs
-│       ├── StorageService.cs
-│       ├── IBookParserService.cs
-│       ├── BookParserService.cs
-│       ├── ITranslationService.cs
-│       └── TranslationService.cs
-├── Xenolexia.Android/       # Android application (to be created)
-└── Xenolexia.Linux/         # Linux desktop application (to be created)
-```
+> "She walked into the **casa** and set down her keys."  
+> _Hover "casa" → reveals "house"_
+
+---
+
+## Platforms
+
+- **Desktop**: Linux, macOS, Windows (single codebase: Avalonia UI, .NET 8)
+- **Android**: .NET MAUI (in progress)
+
+All features use **free and open source libraries** only. Features that cannot be implemented with FOSS are skipped.
+
+---
 
 ## Features
 
-- 📖 **Ebook formats**: EPUB, PDF, TXT, FB2, MOBI (import and library); full parsing for EPUB (VersOne.Epub) and TXT
-- 📚 **Bookshelf**: Import from local storage (file picker) and discover/add books from free online libraries (Project Gutenberg, Standard Ebooks, Open Library); add/delete books on the bookshelf
-- ℹ️ **About**: Application info, version, license, and credits
-- 🌍 **Multi-language Translation**: Support for 28+ languages via LibreTranslate API
-- 💾 **SQLite Storage**: Local database for books and vocabulary
-- 📝 **Vocabulary Building**: Save and review words with spaced repetition
+### Core Reading
+
+| Feature | Status | Notes |
+|--------|--------|------|
+| **Multi-format** | ✅ | EPUB, TXT (full parsing); PDF, FB2, MOBI (import) — VersOne.Epub, minimal custom for TXT/PDF |
+| **Customizable reader** | 🔲 | Fonts, themes (light/dark/sepia), margins, line spacing — planned |
+| **Progress** | ✅ | Bookmarking and progress on `Book` model; reader UI to persist — partial |
+| **Hover-to-reveal** | 🔲 | Translation popup on hover (desktop) — planned with TranslationService |
+
+### Language Engine
+
+| Feature | Status | Notes |
+|--------|--------|------|
+| **28+ language pairs** | ✅ | LibreTranslate (free API); MyMemory/Lingva — add as fallbacks (FOSS) |
+| **Proficiency levels** | ✅ | Beginner, Intermediate, Advanced (CEFR) in models |
+| **Word density** | ✅ | On `Book`; control % of words in target language — TranslationEngine |
+| **Frequency-based selection** | 🔲 | Open word lists — planned |
+| **Offline-friendly** | ✅ | SQLite cache for vocabulary; translation cache — partial |
+
+### Vocabulary
+
+| Feature | Status | Notes |
+|--------|--------|------|
+| **Save words** | ✅ | From reader with context — StorageService |
+| **Spaced repetition (SM-2)** | 🔲 | For saved words — planned |
+| **Vocabulary screen** | ✅ | Search, filter, edit, delete, export (CSV/Anki/JSON) |
+| **Review** | 🔲 | Flashcard-style review — planned |
+
+### Library
+
+| Feature | Status | Notes |
+|--------|--------|------|
+| **Import** | ✅ | Local files (EPUB, PDF, TXT, FB2, MOBI) — file picker, BookImportService |
+| **Discover** | ✅ | Project Gutenberg, Standard Ebooks, Open Library — BookDownloadService |
+| **Library view** | ✅ | Grid of books, add/delete — LibraryView |
+
+---
+
+## Project structure
+
+```
+xenolexia-csharp/
+├── Xenolexia.Core/          # Shared logic (models, services)
+├── Xenolexia.Linux/         # Desktop app (Linux, macOS, Windows) — Avalonia
+├── Xenolexia.Android/       # Android app — MAUI
+└── README.md, IMPLEMENTATION.md, FEATURES.md
+```
+
+- **Xenolexia.Linux** is the cross-platform desktop app (Avalonia). Run it on Linux, macOS, or Windows with the same build.
+
+---
 
 ## Prerequisites
 
-- .NET 8.0 SDK
-- For Android: Android SDK and Android NDK
-- For Linux: GTK# or Avalonia UI runtime
+- .NET 8 SDK  
+- **Desktop (Linux/macOS/Windows)**: no extra deps; Avalonia is included.  
+- **Android**: Android SDK/NDK for MAUI.
 
-## Building
+---
+
+## Build and run
 
 ```bash
-# Restore packages
 dotnet restore
 
-# Build core library
+# Desktop (Linux, macOS, Windows)
+cd Xenolexia.Linux
+dotnet build
+dotnet run
+
+# Core only
 cd Xenolexia.Core
 dotnet build
-
-# Run tests (when available)
-dotnet test
 ```
 
-## Architecture
+---
 
-The application follows a layered architecture:
+## Libraries (FOSS)
 
-- **Core Layer**: Shared business logic, models, and services
-- **Platform Layer**: Platform-specific UI implementations (Android, Linux)
-- **MVVM Pattern**: ViewModels for UI logic separation
+| Purpose | Library | License |
+|--------|---------|--------|
+| EPUB reading | [VersOne.Epub](https://github.com/vers-one/EpubReader) | Unlicense |
+| UI (desktop) | [Avalonia](https://avaloniaui.net/) | MIT |
+| Storage | System.Data.SQLite.Core | Public domain |
+| Translation | LibreTranslate (API) | AGPL (self-hosted) / public API |
+| HTTP/JSON | built-in + Newtonsoft.Json | MIT |
 
-## Services
+See **FEATURES.md** for a full feature-by-feature roadmap and library choices.
 
-### StorageService
-SQLite-based storage for books and vocabulary items.
-
-### BookParserService
-Parses EPUB and TXT files, extracting metadata, chapters, and table of contents.
-
-### TranslationService
-Translates text between languages using the LibreTranslate API.
+---
 
 ## License
 
-MIT License - see LICENSE file for details.
+MIT — see [LICENSE](LICENSE).
