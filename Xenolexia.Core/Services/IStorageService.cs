@@ -24,4 +24,19 @@ public interface IStorageService
     Task<List<VocabularyItem>> GetVocabularyDueForReviewAsync(int limit = 20);
     /// <summary>Record one SM-2 review step (quality 0-5). Uses shared SM-2 formula.</summary>
     Task RecordReviewAsync(string itemId, int quality);
+
+    /// <summary>Load user preferences from the preferences table. Returns defaults for any missing keys.</summary>
+    Task<UserPreferences> GetPreferencesAsync();
+
+    /// <summary>Save user preferences to the preferences table (key/value pairs).</summary>
+    Task SavePreferencesAsync(UserPreferences prefs);
+
+    /// <summary>Start a reading session for the given book. Returns the new session id.</summary>
+    Task<string> StartReadingSessionAsync(string bookId);
+
+    /// <summary>End a reading session and record words revealed/saved.</summary>
+    Task EndReadingSessionAsync(string sessionId, int wordsRevealed, int wordsSaved);
+
+    /// <summary>Get the active (not yet ended) reading session for the book, if any.</summary>
+    Task<ReadingSession?> GetActiveSessionForBookAsync(string bookId);
 }

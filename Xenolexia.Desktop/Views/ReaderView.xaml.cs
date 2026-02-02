@@ -8,6 +8,8 @@ public partial class ReaderView : UserControl
     public ReaderView()
     {
         InitializeComponent();
+        // Words-revealed count: when ToolTip opening API is available, add handler here
+        // to call segment.NotifyRevealedCommand so session tracks hover-to-reveal count.
     }
 
     private void InitializeComponent()

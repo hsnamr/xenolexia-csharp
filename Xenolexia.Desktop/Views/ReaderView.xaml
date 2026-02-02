@@ -2,8 +2,10 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Xenolexia.Desktop.ViewModels"
              xmlns:models="using:Xenolexia.Core.Models"
+             xmlns:converters="using:Xenolexia.Desktop.Converters"
              x:Class="Xenolexia.Desktop.Views.ReaderView"
-             x:DataType="vm:ReaderViewModel">
+             x:DataType="vm:ReaderViewModel"
+             x:Name="Root">
 
     <Grid RowDefinitions="Auto,*">
         <!-- Toolbar -->
@@ -28,14 +30,85 @@
             </Grid>
         </Border>
 
-        <!-- Content -->
+        <!-- Content: segments when we have them, else single text block. Theme/font from ReaderSettings. -->
         <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
                      IsVisible="{Binding NotLoading}">
-            <StackPanel Margin="32,24" MaxWidth="720">
-                <TextBlock Text="{Binding CurrentChapterTitle}" FontSize="22" FontWeight="Bold" Margin="0,0,0,16"
-                           IsVisible="{Binding HasChapters}" />
-                <TextBlock Text="{Binding CurrentChapterContent}" TextWrapping="Wrap" LineHeight="28" FontSize="16" />
-            </StackPanel>
+            <Border x:Name="ReaderContentPanel" Padding="0" Background="Transparent"
+                    Classes.reader_theme_light="{Binding ReaderSettings.Theme, Converter={x:Static converters:EnumEqualsConverter.Instance}, ConverterParameter=Light}"
+                    Classes.reader_theme_dark="{Binding ReaderSettings.Theme, Converter={x:Static converters:EnumEqualsConverter.Instance}, ConverterParameter=Dark}"
+                    Classes.reader_theme_sepia="{Binding ReaderSettings.Theme, Converter={x:Static converters:EnumEqualsConverter.Instance}, ConverterParameter=Sepia}">
+                <Border.Styles>
+                    <Style Selector="Border.reader_theme_light">
+                        <Setter Property="Background" Value="#FFFFFF" />
+                    </Style>
+                    <Style Selector="Border.reader_theme_light TextBlock">
+                        <Setter Property="Foreground" Value="#000000" />
+                    </Style>
+                    <Style Selector="Border.reader_theme_dark">
+                        <Setter Property="Background" Value="#1E1E1E" />
+                    </Style>
+                    <Style Selector="Border.reader_theme_dark TextBlock">
+                        <Setter Property="Foreground" Value="#E0E0E0" />
+                    </Style>
+                    <Style Selector="Border.reader_theme_sepia">
+                        <Setter Property="Background" Value="#F4ECD8" />
+                    </Style>
+                    <Style Selector="Border.reader_theme_sepia TextBlock">
+                        <Setter Property="Foreground" Value="#5C4B37" />
+                    </Style>
+                </Border.Styles>
+                <StackPanel Margin="{Binding ReaderSettings, Converter={x:Static converters:ReaderSettingsToMarginConverter.Instance}}" MaxWidth="720">
+                    <TextBlock Text="{Binding CurrentChapterTitle}" FontWeight="Bold" Margin="0,0,0,16"
+                               FontSize="{Binding ReaderSettings.FontSize}"
+                               FontFamily="{Binding ReaderSettings.FontFamily}"
+                               LineHeight="{Binding ReaderSettings.LineHeight}"
+                               IsVisible="{Binding HasChapters}" />
+                    <!-- Content as segments: plain text and foreign words (with tooltip + Save) -->
+                    <ItemsControl ItemsSource="{Binding ContentSegments}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="models:ReaderContentSegment">
+                                <Border Padding="0" Background="Transparent" Margin="0"
+                                        Classes.foreignword="{Binding IsForeign}">
+                                    <Border.Styles>
+                                        <Style Selector="Border">
+                                            <Setter Property="BorderBrush" Value="Transparent" />
+                                            <Setter Property="BorderThickness" Value="0,0,0,0" />
+                                        </Style>
+                                        <Style Selector="Border.foreignword">
+                                            <Setter Property="BorderBrush" Value="#1E88E5" />
+                                            <Setter Property="BorderThickness" Value="0,0,0,1" />
+                                            <Setter Property="Cursor" Value="Hand" />
+                                        </Style>
+                                    </Border.Styles>
+                                    <TextBlock Text="{Binding Text}" TextWrapping="Wrap" Margin="0,0,2,0"
+                                               FontSize="{Binding ((vm:ReaderViewModel)DataContext).ReaderSettings.FontSize, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                               FontFamily="{Binding ((vm:ReaderViewModel)DataContext).ReaderSettings.FontFamily, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                               LineHeight="{Binding ((vm:ReaderViewModel)DataContext).ReaderSettings.LineHeight, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                                    <ToolTip.Tip>
+                                        <ContentControl Content="{Binding Converter={x:Static converters:SegmentToTipConverter.Instance}}">
+                                            <ContentControl.ContentTemplate>
+                                                <DataTemplate DataType="models:ReaderContentSegment">
+                                                    <StackPanel Spacing="8" MinWidth="180">
+                                                        <TextBlock Text="{Binding WordData.OriginalWord}" FontWeight="SemiBold" />
+                                                        <Button Content="Save to vocabulary"
+                                                                Command="{Binding SaveWordCommand}"
+                                                                CommandParameter="{Binding WordData}" />
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ContentControl.ContentTemplate>
+                                        </ContentControl>
+                                    </ToolTip.Tip>
+                                </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                </StackPanel>
+            </Border>
         </ScrollViewer>
 
         <TextBlock Grid.Row="1" Text="{Binding Error}" Foreground="Red" Margin="24" IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />

@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Xenolexia.Desktop.ViewModels"
+             xmlns:models="using:Xenolexia.Core.Models"
+             x:Class="Xenolexia.Desktop.Views.OnboardingView"
+             x:DataType="vm:OnboardingViewModel">
+
+    <Border Background="#F5F5F5" Padding="48" CornerRadius="12" MaxWidth="480" MaxHeight="420"
+            BoxShadow="0 4 24 0 #30000000">
+        <Grid RowDefinitions="Auto,*,Auto">
+            <TextBlock Grid.Row="0" Text="{Binding StepTitle}" FontSize="22" FontWeight="Bold" Margin="0,0,0,24" />
+
+            <!-- Step content -->
+            <StackPanel Grid.Row="1" Spacing="16">
+                <TextBlock Text="Learn languages through the stories you love. A few quick choices will personalize your reading experience."
+                           TextWrapping="Wrap" IsVisible="{Binding IsWelcomeStep}" />
+                <StackPanel IsVisible="{Binding IsStepSourceLang}" Spacing="8">
+                    <TextBlock Text="Source language (language you're reading in)" />
+                    <ComboBox ItemsSource="{Binding Languages}" SelectedItem="{Binding DefaultSourceLanguage}" MinWidth="220" HorizontalAlignment="Left" />
+                </StackPanel>
+                <StackPanel IsVisible="{Binding IsStepTargetLang}" Spacing="8">
+                    <TextBlock Text="Target language (language you're learning)" />
+                    <ComboBox ItemsSource="{Binding Languages}" SelectedItem="{Binding DefaultTargetLanguage}" MinWidth="220" HorizontalAlignment="Left" />
+                </StackPanel>
+                <StackPanel IsVisible="{Binding IsStepProficiency}" Spacing="8">
+                    <TextBlock Text="Proficiency level" />
+                    <ComboBox ItemsSource="{Binding ProficiencyLevels}" SelectedItem="{Binding DefaultProficiencyLevel}" MinWidth="220" HorizontalAlignment="Left" />
+                </StackPanel>
+                <StackPanel IsVisible="{Binding IsStepWordDensity}" Spacing="8">
+                    <TextBlock Text="Word density (how many words to show in target language, 0.1 – 0.5)" TextWrapping="Wrap" />
+                    <Slider Minimum="0.1" Maximum="0.5" Value="{Binding DefaultWordDensity}" Width="280" HorizontalAlignment="Left" />
+                    <TextBlock Text="{Binding DefaultWordDensity, StringFormat={}{0:F2}}" FontSize="12" Opacity="0.8" />
+                </StackPanel>
+                <TextBlock Text="You're all set! Click Get started to begin."
+                           IsVisible="{Binding IsGetStartedStep}" TextWrapping="Wrap" />
+            </StackPanel>
+
+            <!-- Navigation -->
+            <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" Margin="0,24,0,0">
+                <Button Grid.Column="0" Content="Skip" Command="{Binding SkipCommand}" HorizontalAlignment="Left" />
+                <Button Grid.Column="1" Content="Back" Command="{Binding BackCommand}" IsVisible="{Binding ShowBackButton}" Margin="0,0,8,0" />
+                <Button Grid.Column="2" Content="{Binding NextButtonText}" Command="{Binding NextCommand}" />
+            </Grid>
+        </Grid>
+    </Border>
+</UserControl>

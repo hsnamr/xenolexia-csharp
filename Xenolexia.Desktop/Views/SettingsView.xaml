@@ -1,0 +1,61 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Xenolexia.Desktop.ViewModels"
+             xmlns:models="using:Xenolexia.Core.Models"
+             x:Class="Xenolexia.Desktop.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+    <ScrollViewer>
+        <StackPanel Margin="24" Spacing="20" MaxWidth="520">
+            <TextBlock Text="Settings" FontSize="24" FontWeight="Bold" />
+
+            <!-- Language pair -->
+            <TextBlock Text="Default language pair" FontWeight="SemiBold" />
+            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto">
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Source language" Margin="0,0,0,4" />
+                <TextBlock Grid.Row="0" Grid.Column="1" Text="Target language" Margin="0,0,0,4" />
+                <ComboBox Grid.Row="1" Grid.Column="0" ItemsSource="{Binding Languages}"
+                          SelectedItem="{Binding DefaultSourceLanguage}" Margin="0,0,8,0" />
+                <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Languages}"
+                          SelectedItem="{Binding DefaultTargetLanguage}" Margin="8,0,0,0" />
+            </Grid>
+
+            <!-- Proficiency -->
+            <TextBlock Text="Proficiency level" FontWeight="SemiBold" />
+            <ComboBox ItemsSource="{Binding ProficiencyLevels}" SelectedItem="{Binding DefaultProficiencyLevel}"
+                      HorizontalAlignment="Left" MinWidth="200" />
+
+            <!-- Word density -->
+            <TextBlock Text="Word density (0.1 – 0.5)" FontWeight="SemiBold" />
+            <Slider Minimum="0.1" Maximum="0.5" Value="{Binding DefaultWordDensity}" Width="280"
+                    HorizontalAlignment="Left" />
+            <TextBlock Text="{Binding DefaultWordDensity, StringFormat={}{0:F2}}" FontSize="12" Opacity="0.8" />
+
+            <!-- Reader -->
+            <TextBlock Text="Reader" FontSize="18" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Theme" VerticalAlignment="Center" Margin="0,0,16,0" />
+                <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding ReaderThemes}"
+                          SelectedItem="{Binding ReaderTheme}" HorizontalAlignment="Left" MinWidth="140" />
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Font family" VerticalAlignment="Center" Margin="0,8,16,0" />
+                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding ReaderFontFamily}" MinWidth="200" Margin="0,8,0,0" />
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Font size" VerticalAlignment="Center" Margin="0,8,16,0" />
+                <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding ReaderFontSize}" MinWidth="80" HorizontalAlignment="Left" Margin="0,8,0,0" />
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="Line height" VerticalAlignment="Center" Margin="0,8,16,0" />
+                <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding ReaderLineHeight}" MinWidth="80" HorizontalAlignment="Left" Margin="0,8,0,0" />
+            </Grid>
+
+            <!-- Daily goal & notifications -->
+            <TextBlock Text="Daily goal (minutes)" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <TextBox Text="{Binding DailyGoal}" MinWidth="80" HorizontalAlignment="Left" />
+            <CheckBox IsChecked="{Binding NotificationsEnabled}" Content="Enable notifications" />
+
+            <!-- Actions -->
+            <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,16,0,0">
+                <Button Content="Save" Command="{Binding SaveCommand}" />
+                <Button Content="Reset to defaults" Command="{Binding ResetToDefaultsCommand}" />
+            </StackPanel>
+            <TextBlock Text="{Binding SaveMessage}" IsVisible="{Binding HasSaveMessage}" Foreground="Green" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

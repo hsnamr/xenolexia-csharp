@@ -9,23 +9,28 @@
         Title="Xenolexia"
         Width="1000" Height="700">
 
-    <Grid RowDefinitions="Auto,*">
-        <TabControl Grid.Row="1" Margin="10" IsVisible="{Binding ShowTabs}">
-            <TabItem Header="Library">
-                <ContentControl Content="{Binding LibraryView}" />
-            </TabItem>
-            <TabItem Header="Vocabulary">
-                <ContentControl Content="{Binding VocabularyView}" />
-            </TabItem>
-            <TabItem Header="Settings">
-                <TextBlock Text="Settings - Coming Soon" 
-                          HorizontalAlignment="Center" 
-                          VerticalAlignment="Center" />
-            </TabItem>
-            <TabItem Header="About">
-                <ContentControl Content="{Binding AboutView}" />
-            </TabItem>
-        </TabControl>
-        <ContentControl Grid.Row="1" Content="{Binding ReaderView}" IsVisible="{Binding IsReaderVisible}" />
+    <Grid>
+        <Grid RowDefinitions="*">
+            <TabControl Grid.Row="0" Margin="10" IsVisible="{Binding ShowTabs}">
+                <TabItem Header="Library">
+                    <ContentControl Content="{Binding LibraryView}" />
+                </TabItem>
+                <TabItem Header="Vocabulary">
+                    <ContentControl Content="{Binding VocabularyView}" />
+                </TabItem>
+                <TabItem Header="Settings">
+                    <ContentControl Content="{Binding SettingsView}" />
+                </TabItem>
+                <TabItem Header="About">
+                    <ContentControl Content="{Binding AboutView}" />
+                </TabItem>
+            </TabControl>
+            <ContentControl Grid.Row="0" Content="{Binding ReaderView}" IsVisible="{Binding IsReaderVisible}" />
+        </Grid>
+        <!-- Onboarding overlay -->
+        <Border IsVisible="{Binding ShowOnboarding}" Background="#E5FFFFFF" ZIndex="1"
+                HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <ContentControl Content="{Binding OnboardingView}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
     </Grid>
 </Window>

@@ -126,6 +126,10 @@ public class StorageService : IStorageService
     private static VocabularyStatus SpecToStatus(string s) => Enum.Parse<VocabularyStatus>(s, true);
     private static string FormatToSpec(BookFormat f) => f.ToString().ToLowerInvariant();
     private static BookFormat SpecToFormat(string s) => Enum.Parse<BookFormat>(s, true);
+    private static string ThemeToSpec(ReaderTheme t) => t.ToString().ToLowerInvariant();
+    private static ReaderTheme SpecToTheme(string s) => Enum.Parse<ReaderTheme>(s, true);
+    private static string TextAlignToSpec(TextAlign a) => a.ToString().ToLowerInvariant();
+    private static TextAlign SpecToTextAlign(string s) => Enum.Parse<TextAlign>(s, true);
 
     public async Task<List<Book>> GetAllBooksAsync()
     {
@@ -386,5 +390,162 @@ public class StorageService : IStorageService
             Interval = r.GetInt32(12),
             Status = SpecToStatus(r.GetString(13))
         };
+    }
+
+    public async Task<UserPreferences> GetPreferencesAsync()
+    {
+        if (_connection == null) throw new InvalidOperationException("Database not initialized");
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        using (var cmd = new SQLiteCommand("SELECT key, value FROM preferences", _connection))
+        using (var reader = await cmd.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+                dict[reader.GetString(0)] = reader.GetString(1);
+        }
+
+        string Get(string key, string defaultValue = "")
+        {
+            return dict.TryGetValue(key, out var v) ? v : defaultValue;
+        }
+
+        return new UserPreferences
+        {
+            DefaultSourceLanguage = ParseLang(Get("source_lang", "en")),
+            DefaultTargetLanguage = ParseLang(Get("target_lang", "es")),
+            DefaultProficiencyLevel = ParseProf(Get("proficiency", "beginner")),
+            DefaultWordDensity = ParseDouble(Get("word_density", "0.3"), 0.3),
+            ReaderSettings = new ReaderSettings
+            {
+                Theme = ParseTheme(Get("reader_theme", "light")),
+                FontFamily = Get("reader_font_family", "System"),
+                FontSize = ParseDouble(Get("reader_font_size", "16"), 16),
+                LineHeight = ParseDouble(Get("reader_line_height", "1.6"), 1.6),
+                MarginHorizontal = ParseDouble(Get("reader_margin_horizontal", "24"), 24),
+                MarginVertical = ParseDouble(Get("reader_margin_vertical", "16"), 16),
+                TextAlign = ParseTextAlign(Get("reader_text_align", "left")),
+                Brightness = ParseDouble(Get("reader_brightness", "1"), 1.0)
+            },
+            HasCompletedOnboarding = Get("onboarding_done", "false").Equals("true", StringComparison.OrdinalIgnoreCase),
+            NotificationsEnabled = Get("notifications_enabled", "false").Equals("true", StringComparison.OrdinalIgnoreCase),
+            DailyGoal = (int)ParseDouble(Get("daily_goal", "30"), 30)
+        };
+    }
+
+    public async Task SavePreferencesAsync(UserPreferences prefs)
+    {
+        if (_connection == null) throw new InvalidOperationException("Database not initialized");
+        var pairs = new[]
+        {
+            ("source_lang", LangToSpec(prefs.DefaultSourceLanguage)),
+            ("target_lang", LangToSpec(prefs.DefaultTargetLanguage)),
+            ("proficiency", ProfToSpec(prefs.DefaultProficiencyLevel)),
+            ("word_density", prefs.DefaultWordDensity.ToString("G17", System.Globalization.CultureInfo.InvariantCulture)),
+            ("reader_theme", ThemeToSpec(prefs.ReaderSettings.Theme)),
+            ("reader_font_family", prefs.ReaderSettings.FontFamily ?? "System"),
+            ("reader_font_size", prefs.ReaderSettings.FontSize.ToString("G17", System.Globalization.CultureInfo.InvariantCulture)),
+            ("reader_line_height", prefs.ReaderSettings.LineHeight.ToString("G17", System.Globalization.CultureInfo.InvariantCulture)),
+            ("reader_margin_horizontal", prefs.ReaderSettings.MarginHorizontal.ToString("G17", System.Globalization.CultureInfo.InvariantCulture)),
+            ("reader_margin_vertical", prefs.ReaderSettings.MarginVertical.ToString("G17", System.Globalization.CultureInfo.InvariantCulture)),
+            ("reader_text_align", TextAlignToSpec(prefs.ReaderSettings.TextAlign)),
+            ("reader_brightness", prefs.ReaderSettings.Brightness.ToString("G17", System.Globalization.CultureInfo.InvariantCulture)),
+            ("onboarding_done", prefs.HasCompletedOnboarding ? "true" : "false"),
+            ("notifications_enabled", prefs.NotificationsEnabled ? "true" : "false"),
+            ("daily_goal", prefs.DailyGoal.ToString())
+        };
+        foreach (var (key, value) in pairs)
+        {
+            using var cmd = new SQLiteCommand("INSERT OR REPLACE INTO preferences (key, value) VALUES (@key, @value)", _connection);
+            cmd.Parameters.AddWithValue("@key", key);
+            cmd.Parameters.AddWithValue("@value", value);
+            await cmd.ExecuteNonQueryAsync();
+        }
+    }
+
+    public async Task<string> StartReadingSessionAsync(string bookId)
+    {
+        if (_connection == null) throw new InvalidOperationException("Database not initialized");
+        var sessionId = Guid.NewGuid().ToString("N");
+        var nowMs = ToEpochMs(DateTime.UtcNow);
+        var sql = @"INSERT INTO reading_sessions (id, book_id, started_at, ended_at, pages_read, words_revealed, words_saved)
+                    VALUES (@id, @book_id, @started_at, NULL, 0, 0, 0)";
+        using var cmd = new SQLiteCommand(sql, _connection);
+        cmd.Parameters.AddWithValue("@id", sessionId);
+        cmd.Parameters.AddWithValue("@book_id", bookId);
+        cmd.Parameters.AddWithValue("@started_at", nowMs);
+        await cmd.ExecuteNonQueryAsync();
+        return sessionId;
+    }
+
+    public async Task EndReadingSessionAsync(string sessionId, int wordsRevealed, int wordsSaved)
+    {
+        if (_connection == null) throw new InvalidOperationException("Database not initialized");
+        var nowMs = ToEpochMs(DateTime.UtcNow);
+        var sql = @"UPDATE reading_sessions SET ended_at = @ended_at, words_revealed = @words_revealed, words_saved = @words_saved WHERE id = @id";
+        using var cmd = new SQLiteCommand(sql, _connection);
+        cmd.Parameters.AddWithValue("@id", sessionId);
+        cmd.Parameters.AddWithValue("@ended_at", nowMs);
+        cmd.Parameters.AddWithValue("@words_revealed", wordsRevealed);
+        cmd.Parameters.AddWithValue("@words_saved", wordsSaved);
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    public async Task<ReadingSession?> GetActiveSessionForBookAsync(string bookId)
+    {
+        if (_connection == null) throw new InvalidOperationException("Database not initialized");
+        var sql = @"SELECT id, book_id, started_at, ended_at, pages_read, words_revealed, words_saved
+                    FROM reading_sessions WHERE book_id = @book_id AND ended_at IS NULL ORDER BY started_at DESC LIMIT 1";
+        using var cmd = new SQLiteCommand(sql, _connection);
+        cmd.Parameters.AddWithValue("@book_id", bookId);
+        using var reader = await cmd.ExecuteReaderAsync();
+        if (!await reader.ReadAsync()) return null;
+        return MapReadingSessionFromReader((SQLiteDataReader)reader);
+    }
+
+    private static ReadingSession MapReadingSessionFromReader(SQLiteDataReader r)
+    {
+        var startedMs = r.GetInt64(2);
+        var endedMs = r.IsDBNull(3) ? (long?)null : r.GetInt64(3);
+        var durationSec = endedMs.HasValue ? (int)((endedMs.Value - startedMs) / 1000) : 0;
+        return new ReadingSession
+        {
+            Id = r.GetString(0),
+            BookId = r.GetString(1),
+            StartedAt = FromEpochMs(startedMs),
+            EndedAt = endedMs.HasValue ? FromEpochMs(endedMs.Value) : null,
+            PagesRead = r.GetInt32(4),
+            WordsRevealed = r.GetInt32(5),
+            WordsSaved = r.GetInt32(6),
+            Duration = durationSec
+        };
+    }
+
+    private static Language ParseLang(string s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return Language.En;
+        try { return SpecToLang(s); } catch { return Language.En; }
+    }
+
+    private static ProficiencyLevel ParseProf(string s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return ProficiencyLevel.Beginner;
+        try { return SpecToProf(s); } catch { return ProficiencyLevel.Beginner; }
+    }
+
+    private static ReaderTheme ParseTheme(string s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return ReaderTheme.Light;
+        try { return SpecToTheme(s); } catch { return ReaderTheme.Light; }
+    }
+
+    private static TextAlign ParseTextAlign(string s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return TextAlign.Left;
+        try { return SpecToTextAlign(s); } catch { return TextAlign.Left; }
+    }
+
+    private static double ParseDouble(string s, double defaultValue)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return defaultValue;
+        return double.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : defaultValue;
     }
 }

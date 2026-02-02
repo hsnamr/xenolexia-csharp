@@ -54,3 +54,18 @@ public class ProcessedChapter : Chapter
     public List<ForeignWordData> ForeignWords { get; set; } = new();
     public string ProcessedContent { get; set; } = string.Empty; // HTML with foreign words marked
 }
+
+/// <summary>
+/// A segment of reader content for display: plain text or a foreign word with popup/save.
+/// SaveWordCommand is set by the view layer (ReaderViewModel) so the tooltip Save button can invoke it.
+/// </summary>
+public class ReaderContentSegment
+{
+    public string Text { get; set; } = string.Empty;
+    public bool IsForeign { get; set; }
+    public ForeignWordData? WordData { get; set; }
+    /// <summary>Command to save this word to vocabulary (set by ViewModel; type ICommand at runtime).</summary>
+    public object? SaveWordCommand { get; set; }
+    /// <summary>Command to notify that this word was revealed (tooltip opened); set by ViewModel.</summary>
+    public object? NotifyRevealedCommand { get; set; }
+}

@@ -4,12 +4,14 @@ using Xenolexia.Core.Models;
 namespace Xenolexia.Core.Services;
 
 /// <summary>
-/// Translation engine that processes text and replaces words with translations
+/// Translation engine that processes text and replaces words with translations.
+/// Selects words by density (random sample); translates via ITranslationService; records positions in processed content.
 /// </summary>
 public class TranslationEngine
 {
     private readonly ITranslationService _translationService;
     private readonly Dictionary<string, WordEntry> _wordCache;
+    private readonly Random _random = new();
 
     public TranslationEngine(ITranslationService translationService)
     {
@@ -18,7 +20,8 @@ public class TranslationEngine
     }
 
     /// <summary>
-    /// Process chapter content and replace words based on proficiency level
+    /// Process chapter content and replace words based on proficiency level and density.
+    /// ForeignWordData.StartIndex/EndIndex refer to positions in the returned ProcessedContent.
     /// </summary>
     public async Task<ProcessedChapter> ProcessChapterAsync(
         Chapter chapter,
@@ -26,39 +29,63 @@ public class TranslationEngine
         ProficiencyLevel proficiencyLevel,
         double wordDensity)
     {
-        var words = TokenizeText(chapter.Content);
-        var wordsToReplace = SelectWordsToReplace(words, proficiencyLevel, wordDensity);
-        
-        var foreignWords = new List<ForeignWordData>();
-        var processedContent = chapter.Content;
-        int offset = 0;
-
-        foreach (var word in wordsToReplace)
+        var tokens = TokenizeWithPositions(chapter.Content);
+        if (tokens.Count == 0)
         {
-            var translation = await GetTranslationAsync(word, languagePair);
+            return new ProcessedChapter
+            {
+                Id = chapter.Id,
+                Title = chapter.Title,
+                Index = chapter.Index,
+                Content = chapter.Content,
+                WordCount = chapter.WordCount,
+                Href = chapter.Href,
+                ForeignWords = new List<ForeignWordData>(),
+                ProcessedContent = chapter.Content
+            };
+        }
+
+        // Select tokens by density (random sample); clamp density to avoid too many API calls
+        var takeCount = Math.Max(1, (int)(tokens.Count * Math.Clamp(wordDensity, 0.05, 0.5)));
+        var selectedIndices = Enumerable.Range(0, tokens.Count)
+            .OrderBy(_ => _random.Next())
+            .Take(takeCount)
+            .OrderBy(i => tokens[i].Start)
+            .ToList();
+
+        var foreignWords = new List<ForeignWordData>();
+        var processedContent = new System.Text.StringBuilder();
+        var lastEnd = 0;
+
+        foreach (var idx in selectedIndices)
+        {
+            var (wordLower, original, start, end) = tokens[idx];
+            // Copy plain text from lastEnd to start of this token
+            processedContent.Append(chapter.Content, lastEnd, start - lastEnd);
+
+            var translation = await GetTranslationAsync(wordLower, languagePair);
             if (translation != null)
             {
-                var startIndex = processedContent.IndexOf(word, offset);
-                if (startIndex >= 0)
+                var processedStart = processedContent.Length;
+                processedContent.Append(translation.TargetWord);
+                var processedEnd = processedContent.Length;
+                foreignWords.Add(new ForeignWordData
                 {
-                    var endIndex = startIndex + word.Length;
-                    processedContent = processedContent.Substring(0, startIndex) + 
-                                     translation.TargetWord + 
-                                     processedContent.Substring(endIndex);
-                    
-                    offset = startIndex + translation.TargetWord.Length;
-                    
-                    foreignWords.Add(new ForeignWordData
-                    {
-                        OriginalWord = word,
-                        ForeignWord = translation.TargetWord,
-                        StartIndex = startIndex,
-                        EndIndex = endIndex,
-                        WordEntry = translation
-                    });
-                }
+                    OriginalWord = original,
+                    ForeignWord = translation.TargetWord,
+                    StartIndex = processedStart,
+                    EndIndex = processedEnd,
+                    WordEntry = translation
+                });
             }
+            else
+            {
+                processedContent.Append(chapter.Content, start, end - start);
+            }
+            lastEnd = end;
         }
+
+        processedContent.Append(chapter.Content, lastEnd, chapter.Content.Length - lastEnd);
 
         return new ProcessedChapter
         {
@@ -69,51 +96,36 @@ public class TranslationEngine
             WordCount = chapter.WordCount,
             Href = chapter.Href,
             ForeignWords = foreignWords,
-            ProcessedContent = processedContent
+            ProcessedContent = processedContent.ToString()
         };
     }
 
-    private List<string> TokenizeText(string text)
+    /// <summary>
+    /// Returns (wordLower, originalSubstring, start, end) for each word token.
+    /// </summary>
+    private static List<(string WordLower, string Original, int Start, int End)> TokenizeWithPositions(string text)
     {
-        // Simple tokenization - split by whitespace and punctuation
+        var list = new List<(string, string, int, int)>();
         var pattern = @"\b\w+\b";
         var matches = Regex.Matches(text, pattern);
-        return matches.Select(m => m.Value.ToLowerInvariant()).ToList();
-    }
-
-    private List<string> SelectWordsToReplace(List<string> words, ProficiencyLevel level, double density)
-    {
-        // Filter by frequency rank based on proficiency level
-        var frequencyRanges = level switch
+        foreach (Match m in matches)
         {
-            ProficiencyLevel.Beginner => (1, 500),
-            ProficiencyLevel.Intermediate => (501, 2000),
-            ProficiencyLevel.Advanced => (2001, 5000),
-            _ => (1, 500)
-        };
-
-        // Select words based on density
-        var wordsToReplace = words
-            .Where(w => _wordCache.ContainsKey(w) && 
-                       _wordCache[w].FrequencyRank >= frequencyRanges.Item1 &&
-                       _wordCache[w].FrequencyRank <= frequencyRanges.Item2)
-            .Take((int)(words.Count * density))
-            .ToList();
-
-        return wordsToReplace;
+            var original = m.Value;
+            var lower = original.ToLowerInvariant();
+            list.Add((lower, original, m.Index, m.Index + m.Length));
+        }
+        return list;
     }
 
     private async Task<WordEntry?> GetTranslationAsync(string word, LanguagePair languagePair)
     {
-        if (_wordCache.TryGetValue($"{word}_{languagePair.SourceLanguage}_{languagePair.TargetLanguage}", out var cached))
-        {
+        var cacheKey = $"{word}_{languagePair.SourceLanguage}_{languagePair.TargetLanguage}";
+        if (_wordCache.TryGetValue(cacheKey, out var cached))
             return cached;
-        }
 
         try
         {
             var translation = await _translationService.TranslateAsync(word, languagePair.SourceLanguage, languagePair.TargetLanguage);
-            
             var entry = new WordEntry
             {
                 Id = Guid.NewGuid().ToString(),
@@ -121,12 +133,11 @@ public class TranslationEngine
                 TargetWord = translation,
                 SourceLanguage = languagePair.SourceLanguage,
                 TargetLanguage = languagePair.TargetLanguage,
-                ProficiencyLevel = ProficiencyLevel.Beginner, // Default
-                FrequencyRank = 0, // Would need frequency data
+                ProficiencyLevel = ProficiencyLevel.Beginner,
+                FrequencyRank = 0,
                 PartOfSpeech = PartOfSpeech.Other
             };
-
-            _wordCache[$"{word}_{languagePair.SourceLanguage}_{languagePair.TargetLanguage}"] = entry;
+            _wordCache[cacheKey] = entry;
             return entry;
         }
         catch
