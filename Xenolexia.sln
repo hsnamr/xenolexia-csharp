@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xenolexia.Core", "Xenolexia
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xenolexia.Desktop", "Xenolexia.Desktop\Xenolexia.Desktop.csproj", "{6EB62E53-B7E3-4FB6-9F0C-C6792EC3A731}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Xenolexia.Core.Tests", "Xenolexia.Core.Tests\Xenolexia.Core.Tests.csproj", "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +26,9 @@ Global
 		{6EB62E53-B7E3-4FB6-9F0C-C6792EC3A731}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6EB62E53-B7E3-4FB6-9F0C-C6792EC3A731}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6EB62E53-B7E3-4FB6-9F0C-C6792EC3A731}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

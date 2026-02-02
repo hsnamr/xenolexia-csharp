@@ -1,6 +1,8 @@
 # Implementation Summary
 
-This document summarizes the implementation of the Xenolexia C# application. The product concept: read books in your language with a portion of words in the target language; hover to reveal and save to vocabulary. Implementation uses **free and open source libraries only**; features that cannot be done with FOSS are skipped.
+This document summarizes the implementation of the Xenolexia C# application. The product concept: read books in your language with a portion of words in the target language; hover to reveal and save to vocabulary.
+
+**Libraries**: Only **free and open source libraries compatible with GPL, AGPL, or LGPL** are used (e.g. MIT, Apache 2.0, BSD). **No custom implementation where a suitable library exists**; format parsing, HTML-to-text, and similar logic are delegated to FOSS libraries.
 
 **Platforms**: Desktop (Linux, macOS, Windows) via **Xenolexia.Desktop** (Avalonia). See **FEATURES.md** for the full feature roadmap and FOSS stack.
 
@@ -104,14 +106,19 @@ All format support is implemented with free and open source libraries; no custom
 | **TXT** | .NET BCL (`File.ReadAllTextAsync`) | N/A | Read, single chapter |
 | **FB2** | [Fb2.Document](https://github.com/Overrided/Fb2.Document) (2.5.0) | MIT | Read, metadata, sections/chapters |
 
-**Omitted (no suitable FOSS library for full-text reading):** MOBI/AZW (no .NET FOSS library for full content extraction), PS/PostScript.
+**HTML to plain text** (for EPUB chapter display): [HtmlAgilityPack](https://github.com/zzzprojects/html-agility-pack) (1.12.4, MIT) — no custom regex/entity parsing.
+
+**Omitted (no suitable FOSS library for full-text reading):** MOBI/AZW, PS/PostScript.
 
 ## NuGet Packages
 
+All listed packages are compatible with GPL/AGPL/LGPL (MIT, Apache 2.0, or similar).
+
 ### Core Library:
-- **VersOne.Epub** (3.3.4) – EPUB reading: metadata, TOC, chapters, cover extraction
+- **VersOne.Epub** (3.3.4) – EPUB reading: metadata, TOC, chapters, cover extraction (MIT)
 - **PdfPig** (0.1.13) – PDF text extraction and metadata (Apache 2.0)
 - **Fb2.Document** (2.5.0) – FictionBook 2 (FB2) read and metadata (MIT)
+- **HtmlAgilityPack** (1.12.4) – HTML to plain text for reader (MIT)
 - **System.Data.SQLite.Core** – SQLite storage
 - **Newtonsoft.Json** – JSON (e.g. Gutendex, Open Library APIs)
 

@@ -7,9 +7,9 @@ using UglyToad.PdfPig;
 namespace Xenolexia.Core.Services;
 
 /// <summary>
-/// Book parser service. All format support is implemented via free/open source libraries:
-/// EPUB = VersOne.Epub, TXT = .NET BCL, PDF = PdfPig (Apache 2.0), FB2 = Fb2.Document (MIT).
-/// MOBI/PS are not supported (no suitable FOSS library for full-text reading).
+/// Book parser service. EPUB/PDF/FB2/MOBI use xenolexia-shared-c when native libraries are available;
+/// otherwise fallback: EPUB = VersOne.Epub, PDF = PdfPig, FB2 = Fb2.Document. MOBI requires native lib.
+/// TXT = .NET BCL.
 /// </summary>
 public class BookParserService : IBookParserService
 {
@@ -23,8 +23,9 @@ public class BookParserService : IBookParserService
         {
             BookFormat.Epub => await ParseEpubAsync(filePath),
             BookFormat.Txt => await ParseTxtAsync(filePath),
-            BookFormat.Pdf => ParsePdfMetadataOnly(filePath),
-            BookFormat.Fb2 or BookFormat.Mobi => throw new NotSupportedException($"Format {format} can be imported but full parsing is not yet supported"),
+            BookFormat.Pdf => await ParsePdfAsync(filePath),
+            BookFormat.Fb2 => await ParseFb2Async(filePath),
+            BookFormat.Mobi => await ParseMobiAsync(filePath),
             _ => throw new NotSupportedException($"Format {format} is not yet supported")
         };
     }
@@ -64,7 +65,18 @@ public class BookParserService : IBookParserService
         if (format == BookFormat.Pdf)
             return await GetPdfMetadataAsync(filePath);
         if (format == BookFormat.Fb2)
+        {
+            var fb2Book = Fb2Native.TryParseFb2(filePath);
+            if (fb2Book != null)
+                return await Task.FromResult(fb2Book.Metadata);
             return await GetFb2MetadataAsync(filePath);
+        }
+        if (format == BookFormat.Mobi)
+        {
+            var mobiBook = MobiNative.TryParseMobi(filePath);
+            if (mobiBook != null)
+                return await Task.FromResult(mobiBook.Metadata);
+        }
         var parsed = await ParseBookAsync(filePath);
         return parsed.Metadata;
     }
@@ -85,6 +97,9 @@ public class BookParserService : IBookParserService
 
     private static async Task<ParsedBook> ParseEpubAsync(string filePath)
     {
+        var nativeBook = EpubNative.TryParseEpub(filePath);
+        if (nativeBook != null)
+            return await Task.FromResult(nativeBook);
         var book = await EpubReader.ReadBookAsync(filePath);
         var metadata = new BookMetadata
         {
@@ -152,8 +167,8 @@ public class BookParserService : IBookParserService
         var info = document.Information;
         var metadata = new BookMetadata
         {
-            Title = info.GetTitle() ?? Path.GetFileNameWithoutExtension(filePath),
-            Author = info.GetAuthor(),
+            Title = info.Title ?? Path.GetFileNameWithoutExtension(filePath),
+            Author = info.Author,
             Subjects = new List<string>()
         };
         var sb = new StringBuilder();
@@ -193,38 +208,41 @@ public class BookParserService : IBookParserService
         var info = document.Information;
         return new BookMetadata
         {
-            Title = info.GetTitle() ?? Path.GetFileNameWithoutExtension(filePath),
-            Author = info.GetAuthor(),
+            Title = info.Title ?? Path.GetFileNameWithoutExtension(filePath),
+            Author = info.Author,
             Subjects = new List<string>()
         };
     }
 
     private static async Task<ParsedBook> ParseFb2Async(string filePath)
     {
+        var nativeBook = Fb2Native.TryParseFb2(filePath);
+        if (nativeBook != null)
+            return await Task.FromResult(nativeBook);
         var doc = new Fb2.Document.Fb2Document();
         await using (var stream = File.OpenRead(filePath))
             await doc.LoadAsync(stream);
         var metadata = await GetFb2MetadataFromDocumentAsync(doc, filePath);
         var chapters = new List<Chapter>();
-        var body = doc.Book?.GetFirstDescendant(ElementNames.BookBody) as Fb2.Document.Models.Containers.Fb2Container;
+        var body = doc.Book?.GetFirstDescendant(ElementNames.BookBody) as Fb2.Document.Models.Base.Fb2Container;
         if (body != null)
         {
             var sections = body.GetDescendants(ElementNames.BookBodySection).ToList();
             var index = 0;
             foreach (var section in sections)
             {
-                if (section is not Fb2.Document.Models.Containers.Fb2Container sectionContainer)
+                if (section is not Fb2.Document.Models.Base.Fb2Container sectionContainer)
                     continue;
                 var titleNode = sectionContainer.GetFirstChild(ElementNames.Title);
-                var title = titleNode is Fb2.Document.Models.Elements.Fb2Element titleEl
+                var title = titleNode is Fb2.Document.Models.Base.Fb2Element titleEl
                     ? titleEl.Content
                     : $"Section {index + 1}";
                 var sb = new StringBuilder();
                 foreach (var p in sectionContainer.GetDescendants(ElementNames.Paragraph))
                 {
-                    if (p is Fb2.Document.Models.Containers.Fb2Container pContainer)
+                    if (p is Fb2.Document.Models.Base.Fb2Container pContainer)
                         AppendTextFromNode(pContainer, sb);
-                    else if (p is Fb2.Document.Models.Elements.Fb2Element pel && !string.IsNullOrWhiteSpace(pel.Content))
+                    else if (p is Fb2.Document.Models.Base.Fb2Element pel && !string.IsNullOrWhiteSpace(pel.Content))
                         sb.AppendLine(pel.Content);
                 }
                 var content = sb.ToString().Trim();
@@ -244,9 +262,9 @@ public class BookParserService : IBookParserService
                 var fullText = new StringBuilder();
                 foreach (var p in body.GetDescendants(ElementNames.Paragraph))
                 {
-                    if (p is Fb2.Document.Models.Containers.Fb2Container pContainer)
+                    if (p is Fb2.Document.Models.Base.Fb2Container pContainer)
                         AppendTextFromNode(pContainer, fullText);
-                    else if (p is Fb2.Document.Models.Elements.Fb2Element pel && !string.IsNullOrWhiteSpace(pel.Content))
+                    else if (p is Fb2.Document.Models.Base.Fb2Element pel && !string.IsNullOrWhiteSpace(pel.Content))
                         fullText.AppendLine(pel.Content);
                 }
                 var ct = fullText.ToString().Trim();
@@ -283,17 +301,17 @@ public class BookParserService : IBookParserService
         var title = !string.IsNullOrEmpty(filePath) ? Path.GetFileNameWithoutExtension(filePath) : "Unknown";
         var author = (string?)null;
         var titleInfo = doc.Book?.GetFirstDescendant(ElementNames.TitleInfo);
-        if (titleInfo is Fb2.Document.Models.Containers.Fb2Container titleContainer)
+        if (titleInfo is Fb2.Document.Models.Base.Fb2Container titleContainer)
         {
-            var titleEl = titleContainer.GetFirstChild(ElementNames.BookTitle) as Fb2.Document.Models.Elements.Fb2Element;
+            var titleEl = titleContainer.GetFirstChild(ElementNames.BookTitle) as Fb2.Document.Models.Base.Fb2Element;
             if (titleEl != null)
                 title = titleEl.Content;
-            var authorEl = titleContainer.GetFirstChild(ElementNames.Author) as Fb2.Document.Models.Containers.Fb2Container;
+            var authorEl = titleContainer.GetFirstChild(ElementNames.Author) as Fb2.Document.Models.Base.Fb2Container;
             if (authorEl != null)
             {
                 var parts = new List<string>();
-                var fn = authorEl.GetFirstChild(ElementNames.FirstName) as Fb2.Document.Models.Elements.Fb2Element;
-                var ln = authorEl.GetFirstChild(ElementNames.LastName) as Fb2.Document.Models.Elements.Fb2Element;
+                var fn = authorEl.GetFirstChild(ElementNames.FirstName) as Fb2.Document.Models.Base.Fb2Element;
+                var ln = authorEl.GetFirstChild(ElementNames.LastName) as Fb2.Document.Models.Base.Fb2Element;
                 if (fn != null) parts.Add(fn.Content);
                 if (ln != null) parts.Add(ln.Content);
                 if (parts.Count > 0)
@@ -308,16 +326,24 @@ public class BookParserService : IBookParserService
         });
     }
 
-    private static void AppendTextFromNode(Fb2.Document.Models.Containers.Fb2Container container, StringBuilder sb)
+    private static void AppendTextFromNode(Fb2.Document.Models.Base.Fb2Container container, StringBuilder sb)
     {
         foreach (var node in container.Content)
         {
-            if (node is Fb2.Document.Models.Elements.Fb2Element el && !string.IsNullOrWhiteSpace(el.Content))
+            if (node is Fb2.Document.Models.Base.Fb2Element el && !string.IsNullOrWhiteSpace(el.Content))
                 sb.Append(el.Content);
-            else if (node is Fb2.Document.Models.Containers.Fb2Container child)
+            else if (node is Fb2.Document.Models.Base.Fb2Container child)
                 AppendTextFromNode(child, sb);
         }
         sb.AppendLine();
+    }
+
+    private static async Task<ParsedBook> ParseMobiAsync(string filePath)
+    {
+        var nativeBook = MobiNative.TryParseMobi(filePath);
+        if (nativeBook != null)
+            return await Task.FromResult(nativeBook);
+        throw new NotSupportedException("MOBI parsing requires libxenolexia_mobi (xenolexia-shared-c with ENABLE_LIBMOBI=1).");
     }
 
     private static async Task<ParsedBook> ParseTxtAsync(string filePath)

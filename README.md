@@ -15,7 +15,7 @@ Read books in your native language while learning Spanish, French, German, Japan
 
 - **Desktop**: Linux, macOS, Windows (single codebase: Xenolexia.Desktop — Avalonia UI, .NET 8)
 
-All features use **free and open source libraries** only. Features that cannot be implemented with FOSS are skipped.
+All features use **free and open source libraries compatible with GPL/AGPL/LGPL** only. **No custom implementation where a suitable library exists**; format parsing and HTML-to-text use FOSS libraries (VersOne.Epub, PdfPig, Fb2.Document, HtmlAgilityPack). Features that cannot be implemented with FOSS are skipped.
 
 ---
 
@@ -25,7 +25,7 @@ All features use **free and open source libraries** only. Features that cannot b
 
 | Feature | Status | Notes |
 |--------|--------|------|
-| **Multi-format** | ✅ | EPUB, TXT (full parsing); PDF, FB2, MOBI (import) — VersOne.Epub, minimal custom for TXT/PDF |
+| **Multi-format** | ✅ | EPUB, PDF, TXT, FB2 via FOSS libs (VersOne.Epub, PdfPig, Fb2.Document); MOBI omitted (no FOSS full-text lib) |
 | **Customizable reader** | 🔲 | Fonts, themes (light/dark/sepia), margins, line spacing — planned |
 | **Progress** | ✅ | Bookmarking and progress on `Book` model; reader UI to persist — partial |
 | **Hover-to-reveal** | 🔲 | Translation popup on hover (desktop) — planned with TranslationService |

@@ -127,8 +127,8 @@ public class ExportService : IExportService
             {
                 EscapeCSV(item.SourceWord),
                 EscapeCSV(item.TargetWord),
-                item.SourceLanguage.ToString(),
-                item.TargetLanguage.ToString()
+                item.SourceLanguage.ToString().ToLowerInvariant(),
+                item.TargetLanguage.ToString().ToLowerInvariant()
             };
 
             if (options.IncludeContext)
@@ -137,7 +137,7 @@ public class ExportService : IExportService
                 row.Add(EscapeCSV(item.BookTitle ?? ""));
             if (options.IncludeSRSData)
             {
-                row.Add(item.Status.ToString());
+                row.Add(item.Status.ToString().ToLowerInvariant());
                 row.Add(item.ReviewCount.ToString());
                 row.Add(item.EaseFactor.ToString("F2", CultureInfo.InvariantCulture));
                 row.Add(item.Interval.ToString());
@@ -176,10 +176,10 @@ public class ExportService : IExportService
                 back.Append("</small>");
             }
 
-            // Tags
+            // Tags (spec: lowercase codes e.g. en-fr, new)
             var tags = new List<string>
             {
-                $"{item.SourceLanguage}-{item.TargetLanguage}",
+                $"{item.SourceLanguage.ToString().ToLowerInvariant()}-{item.TargetLanguage.ToString().ToLowerInvariant()}",
                 item.Status.ToString().ToLowerInvariant()
             };
 
@@ -201,12 +201,12 @@ public class ExportService : IExportService
             {
                 sourceWord = item.SourceWord,
                 targetWord = item.TargetWord,
-                sourceLanguage = item.SourceLanguage.ToString(),
-                targetLanguage = item.TargetLanguage.ToString(),
+                sourceLanguage = item.SourceLanguage.ToString().ToLowerInvariant(),
+                targetLanguage = item.TargetLanguage.ToString().ToLowerInvariant(),
                 contextSentence = options.IncludeContext ? item.ContextSentence : null,
                 bookId = options.IncludeBookInfo ? item.BookId : null,
                 bookTitle = options.IncludeBookInfo ? item.BookTitle : null,
-                status = options.IncludeSRSData ? item.Status.ToString() : null,
+                status = options.IncludeSRSData ? item.Status.ToString().ToLowerInvariant() : null,
                 reviewCount = options.IncludeSRSData ? item.ReviewCount : (int?)null,
                 easeFactor = options.IncludeSRSData ? item.EaseFactor : (double?)null,
                 interval = options.IncludeSRSData ? item.Interval : (int?)null,
