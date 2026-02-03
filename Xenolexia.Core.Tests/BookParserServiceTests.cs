@@ -7,15 +7,17 @@ using Xunit;
 namespace Xenolexia.Core.Tests;
 
 /// <summary>
-/// Unit tests for BookParserService. Confirms EPUB parsing (VersOne.Epub, FOSS) returns chapters with content.
+/// Unit tests for BookParserService. Uses the same EPUB library as the C# application (EpubCore):
+/// parsing is done via BookParserService.ParseBookAsync, which calls EpubCore.EpubReader.Read.
+/// Test EPUBs are built as ZIP files that conform to EPUB 2 so EpubCore can parse them.
 /// </summary>
 public class BookParserServiceTests
 {
     private readonly BookParserService _parser = new();
 
     /// <summary>
-    /// Creates a minimal valid EPUB 2 file (ZIP) with one chapter containing readable text.
-    /// VersOne.Epub expects: mimetype (first, stored), META-INF/container.xml, OEBPS/content.opf, OEBPS/chapter1.xhtml.
+    /// Creates a minimal valid EPUB 2 file (ZIP) with one chapter. Parsed by EpubCore when ParseBookAsync is called.
+    /// EpubCore expects: mimetype (first, stored), META-INF/container.xml, OEBPS/content.opf, OEBPS/toc.ncx, OEBPS/chapter1.xhtml.
     /// </summary>
     private static string CreateMinimalEpubToTemp()
     {
@@ -139,11 +141,126 @@ public class BookParserServiceTests
     }
 
     [Fact]
-    public async Task ParseEpubAsync_MissingFile_Throws()
+    public async Task ParseBookAsync_NullPath_ThrowsArgumentException()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(
+            () => _parser.ParseBookAsync(null!));
+        Assert.Equal("filePath", ex.ParamName);
+    }
+
+    [Fact]
+    public async Task ParseBookAsync_EmptyPath_ThrowsArgumentException()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(
+            () => _parser.ParseBookAsync(""));
+        Assert.Equal("filePath", ex.ParamName);
+    }
+
+    [Fact]
+    public async Task ParseBookAsync_WhitespacePath_ThrowsArgumentException()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(
+            () => _parser.ParseBookAsync("   "));
+        Assert.Equal("filePath", ex.ParamName);
+    }
+
+    [Fact]
+    public async Task ParseEpubAsync_MissingFile_ThrowsFileNotFoundException()
     {
         var ex = await Assert.ThrowsAsync<FileNotFoundException>(
             () => _parser.ParseBookAsync("/nonexistent/path.epub"));
         Assert.Contains("nonexistent", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ParseBookAsync_UnsupportedExtension_ThrowsNotSupportedException()
+    {
+        var tmp = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid():N}.xyz");
+        try
+        {
+            await File.WriteAllTextAsync(tmp, "content");
+            var ex = await Assert.ThrowsAsync<NotSupportedException>(
+                () => _parser.ParseBookAsync(tmp));
+            Assert.Contains("Unsupported", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            if (File.Exists(tmp)) File.Delete(tmp);
+        }
+    }
+
+    [Fact]
+    public async Task GetChapterAsync_OutOfRangeNegative_ThrowsArgumentOutOfRangeException()
+    {
+        var epubPath = CreateMinimalEpubToTemp();
+        try
+        {
+            var ex = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+                () => _parser.GetChapterAsync(epubPath, -1));
+            Assert.Equal("chapterIndex", ex.ParamName);
+        }
+        finally
+        {
+            if (File.Exists(epubPath)) File.Delete(epubPath);
+        }
+    }
+
+    [Fact]
+    public async Task GetChapterAsync_OutOfRangeBeyondCount_ThrowsArgumentOutOfRangeException()
+    {
+        var epubPath = CreateMinimalEpubToTemp();
+        try
+        {
+            var ex = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+                () => _parser.GetChapterAsync(epubPath, 99));
+            Assert.Equal("chapterIndex", ex.ParamName);
+        }
+        finally
+        {
+            if (File.Exists(epubPath)) File.Delete(epubPath);
+        }
+    }
+
+    [Fact]
+    public async Task GetTableOfContentsAsync_Epub_ReturnsListFromParsedBook()
+    {
+        var epubPath = CreateMinimalEpubToTemp();
+        try
+        {
+            var toc = await _parser.GetTableOfContentsAsync(epubPath);
+            Assert.NotNull(toc);
+            Assert.NotEmpty(toc);
+            Assert.Contains(toc, t => t.Title == "Chapter 1" || t.Title?.Contains("Chapter") == true);
+        }
+        finally
+        {
+            if (File.Exists(epubPath)) File.Delete(epubPath);
+        }
+    }
+
+    [Fact]
+    public async Task GetMetadataAsync_MissingFile_ThrowsFileNotFoundException()
+    {
+        var ex = await Assert.ThrowsAsync<FileNotFoundException>(
+            () => _parser.GetMetadataAsync("/nonexistent/metadata.epub"));
+        Assert.Contains("nonexistent", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ParseEpubAsync_NotAValidEpubZip_ThrowsInvalidOperationException()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"bad_{Guid.NewGuid():N}.epub");
+        try
+        {
+            await File.WriteAllBytesAsync(path, new byte[] { 0x00, 0x01, 0x02 });
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+                () => _parser.ParseBookAsync(path));
+            Assert.Contains("EPUB", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
     }
 
     [Fact]

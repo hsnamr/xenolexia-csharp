@@ -1,10 +1,10 @@
 using System.Net.Http;
-using VersOne.Epub;
+using EpubCore;
 
 namespace Xenolexia.Core.Services;
 
 /// <summary>
-/// Image processing using VersOne.Epub for EPUB cover extraction and HttpClient for URL covers.
+/// Image processing using EpubCore for EPUB cover extraction and HttpClient for URL covers.
 /// </summary>
 public class ImageProcessingService : IImageProcessingService
 {
@@ -17,19 +17,54 @@ public class ImageProcessingService : IImageProcessingService
 
     public async Task<string?> ExtractCoverFromEpubAsync(string epubPath, string outputDirectory)
     {
+        if (string.IsNullOrWhiteSpace(epubPath))
+            return null;
+        if (string.IsNullOrWhiteSpace(outputDirectory))
+            return null;
         if (!File.Exists(epubPath))
+            return null;
+        var ext = Path.GetExtension(epubPath).ToLowerInvariant();
+        if (ext != ".epub")
             return null;
 
         try
         {
-            using var bookRef = await EpubReader.OpenBookAsync(epubPath);
-            var coverBytes = await bookRef.ReadCoverAsync();
+            EpubBook book;
+            try
+            {
+                book = await Task.Run(() => EpubReader.Read(epubPath));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error reading EPUB for cover: {ex.Message}");
+                return null;
+            }
+            if (book == null)
+                return null;
+
+            byte[]? coverBytes = null;
+            var extension = ".jpg";
+            if (book.CoverImage is byte[] bytes && bytes.Length > 0)
+            {
+                coverBytes = bytes;
+            }
+            else if (!string.IsNullOrEmpty(book.CoverImageHref) && book.Resources?.Images != null)
+            {
+                var href = book.CoverImageHref.Replace('\\', '/').TrimStart('/');
+                var img = book.Resources.Images.FirstOrDefault(i => string.Equals((i.Href ?? "").Replace('\\', '/'), href, StringComparison.OrdinalIgnoreCase));
+                if (img?.Content != null && img.Content.Length > 0)
+                {
+                    coverBytes = img.Content;
+                    var imgExt = Path.GetExtension(img.Href ?? "").ToLowerInvariant();
+                    if (!string.IsNullOrEmpty(imgExt) && imgExt.Length <= 5)
+                        extension = imgExt;
+                }
+            }
             if (coverBytes == null || coverBytes.Length == 0)
                 return null;
 
             Directory.CreateDirectory(outputDirectory);
             var bookId = Path.GetFileNameWithoutExtension(epubPath);
-            var extension = ".jpg";
             var outputPath = Path.Combine(outputDirectory, $"{bookId}_cover{extension}");
             await File.WriteAllBytesAsync(outputPath, coverBytes);
             return outputPath;
