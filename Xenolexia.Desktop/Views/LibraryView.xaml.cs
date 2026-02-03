@@ -65,4 +65,12 @@ public partial class LibraryView : UserControl
             e.Handled = true;
         }
     }
+
+    private void RemoveFromLibraryMenuItem_Click(object? sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem menuItem && menuItem.Tag is Book book && DataContext is LibraryViewModel vm)
+        {
+            vm.DeleteBookCommand.Execute(book);
+        }
+    }
 }

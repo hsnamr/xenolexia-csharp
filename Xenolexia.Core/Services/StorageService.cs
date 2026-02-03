@@ -102,18 +102,196 @@ public class StorageService : IStorageService
                 variants TEXT,
                 pronunciation TEXT
             )";
-        var createIndexes = @"
-            CREATE INDEX IF NOT EXISTS idx_vocabulary_book ON vocabulary(book_id);
-            CREATE INDEX IF NOT EXISTS idx_vocabulary_status ON vocabulary(status);
-            CREATE INDEX IF NOT EXISTS idx_vocabulary_source ON vocabulary(source_word);
-            CREATE INDEX IF NOT EXISTS idx_reading_sessions_book ON reading_sessions(book_id);
-        ";
-
-        foreach (var sql in new[] { createBooks, createVocabulary, createSessions, createPreferences, createWordList, createIndexes })
+        foreach (var sql in new[] { createBooks, createVocabulary, createSessions, createPreferences, createWordList })
         {
             using var cmd = new SQLiteCommand(sql, _connection);
             await cmd.ExecuteNonQueryAsync();
         }
+
+        // Migration: add columns to existing tables (e.g. old DBs without book_id)
+        await MigrateSchemaAsync();
+
+        // Create indexes only for columns that exist (old DBs may have different schema)
+        var vocabCols = await GetColumnNamesAsync("vocabulary");
+        var sessionCols = await GetColumnNamesAsync("reading_sessions");
+        var indexStatements = new List<string>();
+        if (vocabCols.Contains("book_id")) indexStatements.Add("CREATE INDEX IF NOT EXISTS idx_vocabulary_book ON vocabulary(book_id)");
+        if (vocabCols.Contains("status")) indexStatements.Add("CREATE INDEX IF NOT EXISTS idx_vocabulary_status ON vocabulary(status)");
+        if (vocabCols.Contains("source_word")) indexStatements.Add("CREATE INDEX IF NOT EXISTS idx_vocabulary_source ON vocabulary(source_word)");
+        if (sessionCols.Contains("book_id")) indexStatements.Add("CREATE INDEX IF NOT EXISTS idx_reading_sessions_book ON reading_sessions(book_id)");
+        foreach (var sql in indexStatements)
+        {
+            using var cmdIndex = new SQLiteCommand(sql, _connection);
+            await cmdIndex.ExecuteNonQueryAsync();
+        }
+    }
+
+    private async Task MigrateSchemaAsync()
+    {
+        if (_connection == null) return;
+        var vocabCols = await GetColumnNamesAsync("vocabulary");
+        // Ensure vocabulary has book_id, book_title (older schema may not)
+        if (!vocabCols.Contains("book_id"))
+        {
+            using var a1 = new SQLiteCommand("ALTER TABLE vocabulary ADD COLUMN book_id TEXT", _connection);
+            await a1.ExecuteNonQueryAsync();
+            vocabCols.Add("book_id");
+        }
+        if (!vocabCols.Contains("book_title"))
+        {
+            using var a2 = new SQLiteCommand("ALTER TABLE vocabulary ADD COLUMN book_title TEXT", _connection);
+            await a2.ExecuteNonQueryAsync();
+            vocabCols.Add("book_title");
+        }
+        // Migrate PascalCase columns to snake_case (SQLite 3.25+ RENAME COLUMN)
+        await RenameColumnIfExistsAsync("vocabulary", "SourceWord", "source_word");
+        await RenameColumnIfExistsAsync("vocabulary", "TargetWord", "target_word");
+        await RenameColumnIfExistsAsync("vocabulary", "SourceLang", "source_lang");
+        await RenameColumnIfExistsAsync("vocabulary", "TargetLang", "target_lang");
+        await RenameColumnIfExistsAsync("vocabulary", "ContextSentence", "context_sentence");
+        await RenameColumnIfExistsAsync("vocabulary", "BookId", "book_id");
+        await RenameColumnIfExistsAsync("vocabulary", "BookTitle", "book_title");
+        await RenameColumnIfExistsAsync("vocabulary", "AddedAt", "added_at");
+        await RenameColumnIfExistsAsync("vocabulary", "LastReviewedAt", "last_reviewed_at");
+        await RenameColumnIfExistsAsync("vocabulary", "ReviewCount", "review_count");
+        await RenameColumnIfExistsAsync("vocabulary", "EaseFactor", "ease_factor");
+        await RenameColumnIfExistsAsync("vocabulary", "Interval", "interval");
+        await RenameColumnIfExistsAsync("vocabulary", "Status", "status");
+        // Ensure reading_sessions has book_id
+        var sessionCols = await GetColumnNamesAsync("reading_sessions");
+        if (sessionCols.Count > 0 && !sessionCols.Contains("book_id"))
+        {
+            using var a3 = new SQLiteCommand("ALTER TABLE reading_sessions ADD COLUMN book_id TEXT", _connection);
+            await a3.ExecuteNonQueryAsync();
+        }
+        // Ensure books table has all columns (old DBs may lack cover_path, last_read_at, etc.)
+        await MigrateBooksTableAsync();
+        // Fix books table if id was INTEGER (causes constraint failed when inserting UUID)
+        await EnsureBooksTableIdIsTextAsync();
+    }
+
+    private async Task EnsureBooksTableIdIsTextAsync()
+    {
+        if (_connection == null) return;
+        var idType = await GetColumnTypeAsync("books", "id");
+        if (idType == null || idType.IndexOf("INT", StringComparison.OrdinalIgnoreCase) < 0)
+            return;
+        Console.WriteLine($"[Storage] books.id type is '{idType}', recreating table with id TEXT");
+        const string createNew = @"
+            CREATE TABLE books_new (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                author TEXT,
+                cover_path TEXT,
+                file_path TEXT NOT NULL,
+                format TEXT NOT NULL,
+                file_size INTEGER,
+                added_at INTEGER NOT NULL,
+                last_read_at INTEGER,
+                progress REAL DEFAULT 0,
+                current_location TEXT,
+                source_lang TEXT NOT NULL,
+                target_lang TEXT NOT NULL,
+                proficiency TEXT NOT NULL,
+                density REAL DEFAULT 0.3,
+                current_chapter INTEGER,
+                total_chapters INTEGER,
+                current_page INTEGER,
+                total_pages INTEGER,
+                reading_time_minutes INTEGER,
+                source_url TEXT,
+                is_downloaded INTEGER
+            )";
+        using (var cmd = new SQLiteCommand(createNew, _connection))
+            await cmd.ExecuteNonQueryAsync();
+        try
+        {
+            using var copyCmd = new SQLiteCommand(@"
+                INSERT INTO books_new (id, title, author, cover_path, file_path, format, file_size, added_at, last_read_at,
+                    source_lang, target_lang, proficiency, density, progress, current_location,
+                    current_chapter, total_chapters, current_page, total_pages, reading_time_minutes, source_url, is_downloaded)
+                SELECT CAST(id AS TEXT), title, author, cover_path, file_path, format, file_size, added_at, last_read_at,
+                    source_lang, target_lang, proficiency, density, progress, current_location,
+                    current_chapter, total_chapters, current_page, total_pages, reading_time_minutes, source_url, is_downloaded
+                FROM books", _connection);
+            await copyCmd.ExecuteNonQueryAsync();
+        }
+        catch (SQLiteException ex)
+        {
+            Console.WriteLine($"[Storage] Copy to books_new failed ({ex.Message}), dropping old table and keeping empty.");
+        }
+        using (var cmd = new SQLiteCommand("DROP TABLE books", _connection))
+            await cmd.ExecuteNonQueryAsync();
+        using (var cmd = new SQLiteCommand("ALTER TABLE books_new RENAME TO books", _connection))
+            await cmd.ExecuteNonQueryAsync();
+    }
+
+    private async Task<string?> GetColumnTypeAsync(string tableName, string columnName)
+    {
+        if (_connection == null) return null;
+        using var cmd = new SQLiteCommand($"PRAGMA table_info({tableName})", _connection);
+        using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            if (string.Equals(reader.GetString(1), columnName, StringComparison.OrdinalIgnoreCase))
+                return reader.IsDBNull(2) ? null : reader.GetString(2);
+        }
+        return null;
+    }
+
+    private async Task MigrateBooksTableAsync()
+    {
+        if (_connection == null) return;
+        var cols = await GetColumnNamesAsync("books");
+        if (cols.Count == 0) return; // table doesn't exist yet
+        var additions = new[] {
+            ("cover_path", "TEXT"), ("file_path", "TEXT"), ("format", "TEXT"), ("file_size", "INTEGER"),
+            ("added_at", "INTEGER"), ("last_read_at", "INTEGER"), ("progress", "REAL"), ("current_location", "TEXT"),
+            ("source_lang", "TEXT"), ("target_lang", "TEXT"), ("proficiency", "TEXT"), ("density", "REAL"),
+            ("current_chapter", "INTEGER"), ("total_chapters", "INTEGER"), ("current_page", "INTEGER"), ("total_pages", "INTEGER"),
+            ("reading_time_minutes", "INTEGER"), ("source_url", "TEXT"), ("is_downloaded", "INTEGER"),
+        };
+        foreach (var (name, sqlType) in additions)
+        {
+            if (cols.Contains(name)) continue;
+            try
+            {
+                using var cmd = new SQLiteCommand($"ALTER TABLE books ADD COLUMN {name} {sqlType}", _connection);
+                await cmd.ExecuteNonQueryAsync();
+                cols.Add(name);
+            }
+            catch (SQLiteException) { /* duplicate column from race; ignore */ }
+        }
+    }
+
+    private async Task RenameColumnIfExistsAsync(string table, string oldName, string newName)
+    {
+        if (_connection == null) return;
+        var cols = await GetColumnNamesAsync(table);
+        if (!cols.Contains(oldName) || cols.Contains(newName)) return;
+        try
+        {
+            using var cmd = new SQLiteCommand($"ALTER TABLE {table} RENAME COLUMN \"{oldName}\" TO \"{newName}\"", _connection);
+            await cmd.ExecuteNonQueryAsync();
+        }
+        catch (SQLiteException)
+        {
+            // SQLite < 3.25 has no RENAME COLUMN; ignore
+        }
+    }
+
+    private async Task<HashSet<string>> GetColumnNamesAsync(string tableName)
+    {
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (_connection == null) return set;
+        using var cmd = new SQLiteCommand($"PRAGMA table_info({tableName})", _connection);
+        using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            var name = reader.GetString(1);
+            set.Add(name);
+        }
+        return set;
     }
 
     private static long ToEpochMs(DateTime d) => new DateTimeOffset(d).ToUnixTimeMilliseconds();
@@ -130,6 +308,15 @@ public class StorageService : IStorageService
     private static ReaderTheme SpecToTheme(string s) => Enum.Parse<ReaderTheme>(s, true);
     private static string TextAlignToSpec(TextAlign a) => a.ToString().ToLowerInvariant();
     private static TextAlign SpecToTextAlign(string s) => Enum.Parse<TextAlign>(s, true);
+
+    private static DateTime SafeFromEpochMs(long ms)
+    {
+        if (ms <= 0 || ms > 8640000000000000L) return DateTime.UnixEpoch;
+        try { return DateTimeOffset.FromUnixTimeMilliseconds(ms).UtcDateTime; } catch { return DateTime.UnixEpoch; }
+    }
+    private static BookFormat SafeSpecToFormat(string? s) => string.IsNullOrWhiteSpace(s) || !Enum.TryParse<BookFormat>(s, true, out var f) ? BookFormat.Epub : f;
+    private static Language SafeSpecToLang(string? s) => string.IsNullOrWhiteSpace(s) || !Enum.TryParse<Language>(s, true, out var l) ? Language.En : l;
+    private static ProficiencyLevel SafeSpecToProf(string? s) => string.IsNullOrWhiteSpace(s) || !Enum.TryParse<ProficiencyLevel>(s, true, out var p) ? ProficiencyLevel.Beginner : p;
 
     public async Task<List<Book>> GetAllBooksAsync()
     {
@@ -153,18 +340,62 @@ public class StorageService : IStorageService
         return await reader.ReadAsync() ? MapBookFromReader((SQLiteDataReader)reader) : null;
     }
 
+    public async Task<Book?> GetBookByFilePathAsync(string filePath)
+    {
+        if (_connection == null || string.IsNullOrWhiteSpace(filePath)) return null;
+        var query = "SELECT * FROM books WHERE file_path = @file_path LIMIT 1";
+        using var cmd = new SQLiteCommand(query, _connection);
+        cmd.Parameters.AddWithValue("@file_path", filePath);
+        using var reader = await cmd.ExecuteReaderAsync();
+        return await reader.ReadAsync() ? MapBookFromReader((SQLiteDataReader)reader) : null;
+    }
+
     public async Task AddBookAsync(Book book)
     {
         if (_connection == null) throw new InvalidOperationException("Database not initialized");
+        if (string.IsNullOrWhiteSpace(book.Id))
+            book.Id = Guid.NewGuid().ToString("N")[..16];
+        Console.WriteLine($"[Storage] AddBook: id={book.Id?.Length ?? 0} chars, file_path={book.FilePath?.Length ?? 0} chars, title={book.Title?.Length ?? 0} chars");
+        await LogBooksTableSchemaAsync();
         var query = @"INSERT INTO books (id, title, author, cover_path, file_path, format, file_size, added_at, last_read_at,
             source_lang, target_lang, proficiency, density, progress, current_location,
             current_chapter, total_chapters, current_page, total_pages, reading_time_minutes, source_url, is_downloaded)
             VALUES (@id, @title, @author, @cover_path, @file_path, @format, @file_size, @added_at, @last_read_at,
             @source_lang, @target_lang, @proficiency, @density, @progress, @current_location,
             @current_chapter, @total_chapters, @current_page, @total_pages, @reading_time_minutes, @source_url, @is_downloaded)";
-        using var cmd = new SQLiteCommand(query, _connection);
-        AddBookParams(cmd, book);
-        await cmd.ExecuteNonQueryAsync();
+        try
+        {
+            using var cmd = new SQLiteCommand(query, _connection);
+            AddBookParams(cmd, book);
+            await cmd.ExecuteNonQueryAsync();
+        }
+        catch (SQLiteException ex)
+        {
+            Console.WriteLine($"[Storage] SQLiteException: ErrorCode={ex.ResultCode}, Message={ex.Message}");
+            throw new InvalidOperationException($"Insert failed: {ex.ResultCode} - {ex.Message}", ex);
+        }
+    }
+
+    private async Task LogBooksTableSchemaAsync()
+    {
+        if (_connection == null) return;
+        try
+        {
+            using var cmd = new SQLiteCommand("PRAGMA table_info(books)", _connection);
+            using var reader = await cmd.ExecuteReaderAsync();
+            var columns = new List<string>();
+            while (await reader.ReadAsync())
+            {
+                var name = reader.GetString(1);
+                var notnull = reader.GetInt32(3);
+                columns.Add(notnull != 0 ? $"{name}(NOT NULL)" : name);
+            }
+            Console.WriteLine($"[Storage] books table columns: {string.Join(", ", columns)}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Storage] Could not read table_info: {ex.Message}");
+        }
     }
 
     public async Task UpdateBookAsync(Book book)
@@ -191,27 +422,29 @@ public class StorageService : IStorageService
 
     private void AddBookParams(SQLiteCommand cmd, Book book)
     {
-        cmd.Parameters.AddWithValue("@id", book.Id);
-        cmd.Parameters.AddWithValue("@title", book.Title);
+        cmd.Parameters.AddWithValue("@id", book.Id ?? "");
+        cmd.Parameters.AddWithValue("@title", book.Title ?? "");
         cmd.Parameters.AddWithValue("@author", book.Author ?? "");
-        cmd.Parameters.AddWithValue("@cover_path", book.CoverPath ?? (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@file_path", book.FilePath);
+        cmd.Parameters.AddWithValue("@cover_path", string.IsNullOrEmpty(book.CoverPath) ? (object)DBNull.Value : book.CoverPath);
+        cmd.Parameters.AddWithValue("@file_path", book.FilePath ?? "");
         cmd.Parameters.AddWithValue("@format", FormatToSpec(book.Format));
         cmd.Parameters.AddWithValue("@file_size", book.FileSize);
-        cmd.Parameters.AddWithValue("@added_at", ToEpochMs(book.AddedAt));
+        var addedAt = book.AddedAt;
+        if (addedAt == default) addedAt = DateTime.UtcNow;
+        cmd.Parameters.AddWithValue("@added_at", ToEpochMs(addedAt));
         cmd.Parameters.AddWithValue("@last_read_at", book.LastReadAt.HasValue ? ToEpochMs(book.LastReadAt.Value) : (object)DBNull.Value);
-        cmd.Parameters.AddWithValue("@source_lang", LangToSpec(book.LanguagePair.SourceLanguage));
-        cmd.Parameters.AddWithValue("@target_lang", LangToSpec(book.LanguagePair.TargetLanguage));
+        cmd.Parameters.AddWithValue("@source_lang", book.LanguagePair != null ? LangToSpec(book.LanguagePair.SourceLanguage) : "en");
+        cmd.Parameters.AddWithValue("@target_lang", book.LanguagePair != null ? LangToSpec(book.LanguagePair.TargetLanguage) : "es");
         cmd.Parameters.AddWithValue("@proficiency", ProfToSpec(book.ProficiencyLevel));
-        cmd.Parameters.AddWithValue("@density", book.WordDensity);
+        cmd.Parameters.AddWithValue("@density", Math.Max(0.1, Math.Min(1.0, book.WordDensity)));
         cmd.Parameters.AddWithValue("@progress", book.Progress);
-        cmd.Parameters.AddWithValue("@current_location", book.CurrentLocation ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@current_location", string.IsNullOrEmpty(book.CurrentLocation) ? (object)DBNull.Value : book.CurrentLocation);
         cmd.Parameters.AddWithValue("@current_chapter", book.CurrentChapter);
         cmd.Parameters.AddWithValue("@total_chapters", book.TotalChapters);
         cmd.Parameters.AddWithValue("@current_page", book.CurrentPage);
         cmd.Parameters.AddWithValue("@total_pages", book.TotalPages);
         cmd.Parameters.AddWithValue("@reading_time_minutes", book.ReadingTimeMinutes);
-        cmd.Parameters.AddWithValue("@source_url", book.SourceUrl ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@source_url", string.IsNullOrEmpty(book.SourceUrl) ? (object)DBNull.Value : book.SourceUrl);
         cmd.Parameters.AddWithValue("@is_downloaded", book.IsDownloaded ? 1 : 0);
     }
 
@@ -219,29 +452,36 @@ public class StorageService : IStorageService
     {
         return new Book
         {
-            Id = r.GetString(0),
-            Title = r.GetString(1),
-            Author = r.IsDBNull(2) ? "" : r.GetString(2),
-            CoverPath = r.IsDBNull(3) ? null : r.GetString(3),
-            FilePath = r.GetString(4),
-            Format = SpecToFormat(r.GetString(5)),
-            FileSize = r.IsDBNull(6) ? 0 : r.GetInt64(6),
-            AddedAt = FromEpochMs(r.GetInt64(7)),
-            LastReadAt = r.IsDBNull(8) ? null : FromEpochMs(r.GetInt64(8)),
-            LanguagePair = new LanguagePair { SourceLanguage = SpecToLang(r.GetString(10)), TargetLanguage = SpecToLang(r.GetString(11)) },
-            ProficiencyLevel = SpecToProf(r.GetString(12)),
-            WordDensity = r.GetDouble(13),
-            Progress = r.GetDouble(14),
-            CurrentLocation = r.IsDBNull(15) ? null : r.GetString(15),
-            CurrentChapter = r.IsDBNull(16) ? 0 : r.GetInt32(16),
-            TotalChapters = r.IsDBNull(17) ? 0 : r.GetInt32(17),
-            CurrentPage = r.IsDBNull(18) ? 0 : r.GetInt32(18),
-            TotalPages = r.IsDBNull(19) ? 0 : r.GetInt32(19),
-            ReadingTimeMinutes = r.IsDBNull(20) ? 0 : r.GetInt32(20),
-            SourceUrl = r.IsDBNull(21) ? null : r.GetString(21),
-            IsDownloaded = r.IsDBNull(22) ? false : r.GetInt32(22) != 0
+            Id = GetString(r, "id"),
+            Title = GetString(r, "title"),
+            Author = GetString(r, "author") ?? "",
+            CoverPath = GetStringNull(r, "cover_path"),
+            FilePath = GetString(r, "file_path"),
+            Format = SafeSpecToFormat(GetStringNull(r, "format")),
+            FileSize = GetInt64(r, "file_size"),
+            AddedAt = SafeFromEpochMs(GetInt64(r, "added_at")),
+            LastReadAt = GetInt64Null(r, "last_read_at") is { } t ? SafeFromEpochMs(t) : null,
+            Progress = GetDouble(r, "progress"),
+            CurrentLocation = GetStringNull(r, "current_location"),
+            LanguagePair = new LanguagePair { SourceLanguage = SafeSpecToLang(GetStringNull(r, "source_lang")), TargetLanguage = SafeSpecToLang(GetStringNull(r, "target_lang")) },
+            ProficiencyLevel = SafeSpecToProf(GetStringNull(r, "proficiency")),
+            WordDensity = GetDouble(r, "density"),
+            CurrentChapter = GetInt32(r, "current_chapter"),
+            TotalChapters = GetInt32(r, "total_chapters"),
+            CurrentPage = GetInt32(r, "current_page"),
+            TotalPages = GetInt32(r, "total_pages"),
+            ReadingTimeMinutes = GetInt32(r, "reading_time_minutes"),
+            SourceUrl = GetStringNull(r, "source_url"),
+            IsDownloaded = GetInt32(r, "is_downloaded") != 0
         };
     }
+
+    private static string GetString(SQLiteDataReader r, string col) => r.IsDBNull(r.GetOrdinal(col)) ? "" : r.GetString(r.GetOrdinal(col));
+    private static string? GetStringNull(SQLiteDataReader r, string col) => r.IsDBNull(r.GetOrdinal(col)) ? null : r.GetString(r.GetOrdinal(col));
+    private static long GetInt64(SQLiteDataReader r, string col) { var i = r.GetOrdinal(col); return r.IsDBNull(i) ? 0 : Convert.ToInt64(r.GetValue(i)); }
+    private static long? GetInt64Null(SQLiteDataReader r, string col) { var i = r.GetOrdinal(col); return r.IsDBNull(i) ? null : Convert.ToInt64(r.GetValue(i)); }
+    private static double GetDouble(SQLiteDataReader r, string col) { var i = r.GetOrdinal(col); return r.IsDBNull(i) ? 0 : Convert.ToDouble(r.GetValue(i)); }
+    private static int GetInt32(SQLiteDataReader r, string col) { var i = r.GetOrdinal(col); return r.IsDBNull(i) ? 0 : Convert.ToInt32(r.GetValue(i)); }
 
     public async Task<List<VocabularyItem>> GetVocabularyItemsAsync()
     {

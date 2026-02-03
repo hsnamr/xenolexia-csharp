@@ -111,7 +111,7 @@
             </Border>
         </ScrollViewer>
 
-        <TextBlock Grid.Row="1" Text="{Binding Error}" Foreground="Red" Margin="24" IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        <SelectableTextBlock Grid.Row="1" Text="{Binding Error}" Foreground="Red" Margin="24" IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
         <ProgressBar Grid.Row="1" IsIndeterminate="True" IsVisible="{Binding IsLoading}" VerticalAlignment="Top" Margin="24" />
     </Grid>
 </UserControl>

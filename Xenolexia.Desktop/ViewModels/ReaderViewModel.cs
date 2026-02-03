@@ -78,6 +78,13 @@ public partial class ReaderViewModel : ViewModelBase
         _wordsSaved = 0;
         try
         {
+            if (string.IsNullOrWhiteSpace(_filePath))
+            {
+                Error = "This book's file is missing. Remove it from the library and import it again from file.";
+                CurrentChapterContent = Error;
+                return;
+            }
+
             var prefs = await _storageService.GetPreferencesAsync();
             ReaderSettings = prefs.ReaderSettings;
 

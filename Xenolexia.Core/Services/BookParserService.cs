@@ -15,6 +15,8 @@ public class BookParserService : IBookParserService
 {
     public async Task<ParsedBook> ParseBookAsync(string filePath)
     {
+        if (string.IsNullOrWhiteSpace(filePath))
+            throw new FileNotFoundException("Book file path is missing.");
         if (!File.Exists(filePath))
             throw new FileNotFoundException($"Book file not found: {filePath}");
 

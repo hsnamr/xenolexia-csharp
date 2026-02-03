@@ -7,7 +7,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="600"
              x:Class="Xenolexia.Desktop.Views.LibraryView"
-             x:DataType="vm:LibraryViewModel">
+             x:DataType="vm:LibraryViewModel"
+             x:Name="LibraryView">
 
     <Grid RowDefinitions="Auto,Auto,*" Margin="16">
         <!-- Toolbar -->
@@ -15,8 +16,8 @@
             <Button Content="Import from file" Command="{Binding ImportFromFileCommand}" />
             <Button Content="Get from online" Command="{Binding ShowOnlineSearchCommand}" />
             <Button Content="Refresh" Command="{Binding LoadBooksCommand}" />
-            <TextBlock Text="{Binding ImportError}" Foreground="Red" VerticalAlignment="Center"
-                       IsVisible="{Binding ImportError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            <SelectableTextBlock Text="{Binding ImportError}" Foreground="Red" VerticalAlignment="Center"
+                                 IsVisible="{Binding ImportError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
         </StackPanel>
 
         <!-- Section title -->
@@ -39,8 +40,8 @@
                             <Border.ContextMenu>
                                 <ContextMenu>
                                     <MenuItem Header="Remove from library"
-                                              Command="{Binding ((vm:LibraryViewModel)DataContext).DeleteBookCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                              CommandParameter="{Binding}" />
+                                              Tag="{Binding}"
+                                              Click="RemoveFromLibraryMenuItem_Click" />
                                 </ContextMenu>
                             </Border.ContextMenu>
                             <StackPanel Spacing="8" Margin="12">
@@ -53,8 +54,12 @@
                                                TextTrimming="CharacterEllipsis" MaxLines="2"
                                                TextWrapping="Wrap" TextAlignment="Center" />
                                 </Border>
-                                <Button Content="Read" Command="{Binding ((vm:LibraryViewModel)DataContext).OpenBookCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                        CommandParameter="{Binding}" />
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button Content="Read" Command="{Binding ((vm:LibraryViewModel)DataContext).OpenBookCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}" />
+                                    <Button Content="Remove" Command="{Binding ((vm:LibraryViewModel)DataContext).DeleteBookCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}" />
+                                </StackPanel>
                                 <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxLines="2" TextWrapping="Wrap" />
                                 <TextBlock Text="{Binding Author}" FontSize="12" Opacity="0.8" TextTrimming="CharacterEllipsis" MaxLines="1" />
                                 <TextBlock Text="{Binding Progress, StringFormat='{}{0:F0}% read'}" FontSize="11" Opacity="0.7" />
@@ -110,7 +115,7 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
-                    <TextBlock Text="{Binding DownloadError}" Foreground="Red" />
+                    <SelectableTextBlock Text="{Binding DownloadError}" Foreground="Red" />
                     <ProgressBar IsIndeterminate="{Binding IsSearching}" IsVisible="{Binding IsSearching}" />
                     <ProgressBar Value="{Binding DownloadProgressPercent}" Maximum="100" IsVisible="{Binding IsDownloading}" />
                 </StackPanel>

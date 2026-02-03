@@ -130,7 +130,10 @@ public partial class LibraryViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            ImportError = ex.Message;
+            var full = ex.ToString();
+            System.Diagnostics.Debug.WriteLine($"[Import] Error: {full}");
+            Console.WriteLine($"[Import] Error: {full}");
+            ImportError = full;
         }
         finally
         {

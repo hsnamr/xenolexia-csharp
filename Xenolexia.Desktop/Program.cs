@@ -48,7 +48,7 @@ class Program
         
         Directory.CreateDirectory(Path.GetDirectoryName(databasePath)!);
 
-        var storageService = new StorageService(databasePath);
+        var storageService = new LiteDbStorageService(databasePath);
         await storageService.InitializeAsync();
 
         var booksDir = Path.Combine(

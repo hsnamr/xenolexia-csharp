@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using Xenolexia.Core.Models;
 
 namespace Xenolexia.Core.Services;
@@ -67,12 +65,12 @@ public class BookImportService : IBookImportService
 
         var format = GetFormatFromPath(sourceFilePath);
         var fileInfo = new FileInfo(sourceFilePath);
-        var bookId = GenerateBookId(sourceFilePath);
-
-        var destDir = Path.Combine(_booksDirectory, bookId);
-        Directory.CreateDirectory(destDir);
-        var destFileName = $"book{Path.GetExtension(sourceFilePath)}";
-        var destFilePath = Path.Combine(destDir, destFileName);
+        // Emulate TypeScript/Electron: use UUID for book id (like uuidv4()), flat path books/{id}.epub
+        var bookId = Guid.NewGuid().ToString("N");
+        var ext = Path.GetExtension(sourceFilePath);
+        if (string.IsNullOrEmpty(ext)) ext = ".txt";
+        var destFilePath = Path.Combine(_booksDirectory, bookId + ext);
+        Directory.CreateDirectory(_booksDirectory);
         await Task.Run(() => File.Copy(sourceFilePath, destFilePath, overwrite: true));
 
         BookMetadata metadata;
@@ -128,7 +126,20 @@ public class BookImportService : IBookImportService
             IsDownloaded = false
         };
 
-        await _storageService.AddBookAsync(book);
+        Console.WriteLine($"[Import] About to add book: Id={book.Id}, FilePath={book.FilePath}, Title={book.Title}");
+        try
+        {
+            await _storageService.AddBookAsync(book);
+            Console.WriteLine("[Import] AddBookAsync completed successfully.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Import] AddBookAsync failed: {ex.GetType().Name}: {ex.Message}");
+            Console.WriteLine($"[Import] Stack: {ex.StackTrace}");
+            if (ex.InnerException != null)
+                Console.WriteLine($"[Import] Inner: {ex.InnerException.Message}");
+            throw;
+        }
         return book;
     }
 
@@ -211,13 +222,5 @@ public class BookImportService : IBookImportService
 
         await _storageService.AddBookAsync(book);
         return book;
-    }
-
-    private static string GenerateBookId(string sourceFilePath)
-    {
-        var combined = $"{sourceFilePath}_{DateTime.UtcNow.Ticks}";
-        var bytes = Encoding.UTF8.GetBytes(combined);
-        var hash = SHA256.HashData(bytes);
-        return Convert.ToHexString(hash)[..16].ToLowerInvariant();
     }
 }

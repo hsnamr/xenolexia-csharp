@@ -11,6 +11,8 @@ public interface IStorageService
     Task InitializeAsync();
     Task<List<Book>> GetAllBooksAsync();
     Task<Book?> GetBookByIdAsync(string bookId);
+    /// <summary>Find a book by its file path, if any.</summary>
+    Task<Book?> GetBookByFilePathAsync(string filePath);
     Task AddBookAsync(Book book);
     Task UpdateBookAsync(Book book);
     Task DeleteBookAsync(string bookId);
