@@ -56,6 +56,13 @@ public partial class LibraryViewModel : ViewModelBase
     [ObservableProperty]
     private int _downloadProgressPercent;
 
+    /// <summary>True = list view, False = grid view. Persisted in preferences.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsGridViewMode))]
+    private bool _isListViewMode;
+
+    public bool IsGridViewMode => !IsListViewMode;
+
     /// <summary>Online library sources for the ComboBox.</summary>
     public static EbookSource[] OnlineSourceList { get; } =
         { EbookSource.Gutenberg, EbookSource.StandardEbooks, EbookSource.OpenLibrary };
@@ -83,6 +90,9 @@ public partial class LibraryViewModel : ViewModelBase
             IsLoading = true;
             ImportError = null;
             Books.Clear();
+
+            var prefs = await _storageService.GetPreferencesAsync();
+            IsListViewMode = string.Equals(prefs.LibraryViewMode, "List", StringComparison.OrdinalIgnoreCase);
 
             var allBooks = await _storageService.GetAllBooksAsync();
             foreach (var book in allBooks)
@@ -225,6 +235,40 @@ public partial class LibraryViewModel : ViewModelBase
         {
             IsDownloading = false;
             DownloadProgressPercent = 0;
+        }
+    }
+
+    [RelayCommand]
+    private async Task SwitchToGridViewAsync()
+    {
+        if (IsListViewMode)
+        {
+            IsListViewMode = false;
+            await SaveLibraryViewModeAsync();
+        }
+    }
+
+    [RelayCommand]
+    private async Task SwitchToListViewAsync()
+    {
+        if (!IsListViewMode)
+        {
+            IsListViewMode = true;
+            await SaveLibraryViewModeAsync();
+        }
+    }
+
+    private async Task SaveLibraryViewModeAsync()
+    {
+        try
+        {
+            var prefs = await _storageService.GetPreferencesAsync();
+            prefs.LibraryViewMode = IsListViewMode ? "List" : "Grid";
+            await _storageService.SavePreferencesAsync(prefs);
+        }
+        catch
+        {
+            // ignore
         }
     }
 

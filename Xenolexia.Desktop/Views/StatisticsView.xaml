@@ -49,6 +49,35 @@
                     </Grid>
                 </Border>
                 <TextBlock Text="{Binding AverageSessionDurationMinutes, StringFormat='Average session: {0:F0} min'}" Opacity="0.9" FontSize="12" />
+
+                <!-- Reading over time chart (last 7 days) -->
+                <TextBlock Text="Reading over time" FontSize="16" FontWeight="SemiBold" />
+                <Border Padding="16" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                        CornerRadius="8" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                        BorderThickness="1">
+                    <StackPanel Spacing="8">
+                        <ItemsControl ItemsSource="{Binding WordsRevealedByDay}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="vm:WordsRevealedByDayItem">
+                                    <StackPanel Margin="4,0" MinWidth="36">
+                                        <Border Height="80" Margin="0,0,0,0">
+                                            <Border VerticalAlignment="Bottom" Width="24" CornerRadius="2"
+                                                    Background="{DynamicResource SystemControlHighlightAccentBrush}"
+                                                    Height="{Binding HeightPixels}" />
+                                        </Border>
+                                        <TextBlock Text="{Binding DayLabel}" FontSize="11" HorizontalAlignment="Center" Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="Words revealed per day (last 7 days)" FontSize="11" Opacity="0.8" />
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </StackPanel>
     </ScrollViewer>

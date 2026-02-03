@@ -44,4 +44,7 @@ public interface IStorageService
 
     /// <summary>Aggregate reading and vocabulary stats for the Statistics screen.</summary>
     Task<ReadingStats> GetReadingStatsAsync();
+
+    /// <summary>Words revealed per day for the last N days (for "reading over time" chart). Date is date-only; count is sum of words_revealed for sessions ended on that day.</summary>
+    Task<IReadOnlyList<(DateTime Date, int WordsRevealed)>> GetWordsRevealedByDayAsync(int lastDays);
 }

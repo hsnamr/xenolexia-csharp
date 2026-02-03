@@ -655,7 +655,8 @@ public class StorageService : IStorageService
             },
             HasCompletedOnboarding = Get("onboarding_done", "false").Equals("true", StringComparison.OrdinalIgnoreCase),
             NotificationsEnabled = Get("notifications_enabled", "false").Equals("true", StringComparison.OrdinalIgnoreCase),
-            DailyGoal = (int)ParseDouble(Get("daily_goal", "30"), 30)
+            DailyGoal = (int)ParseDouble(Get("daily_goal", "30"), 30),
+            LibraryViewMode = Get("library_view_mode", "Grid")
         };
     }
 
@@ -678,7 +679,8 @@ public class StorageService : IStorageService
             ("reader_brightness", prefs.ReaderSettings.Brightness.ToString("G17", System.Globalization.CultureInfo.InvariantCulture)),
             ("onboarding_done", prefs.HasCompletedOnboarding ? "true" : "false"),
             ("notifications_enabled", prefs.NotificationsEnabled ? "true" : "false"),
-            ("daily_goal", prefs.DailyGoal.ToString())
+            ("daily_goal", prefs.DailyGoal.ToString()),
+            ("library_view_mode", prefs.LibraryViewMode ?? "Grid")
         };
         foreach (var (key, value) in pairs)
         {
@@ -872,5 +874,38 @@ public class StorageService : IStorageService
             if (current > maxStreak) maxStreak = current;
         }
         return maxStreak;
+    }
+
+    public async Task<IReadOnlyList<(DateTime Date, int WordsRevealed)>> GetWordsRevealedByDayAsync(int lastDays)
+    {
+        if (_connection == null) throw new InvalidOperationException("Database not initialized");
+        var today = DateTime.UtcNow.Date;
+        var dict = new Dictionary<DateTime, int>();
+        for (var i = 0; i < lastDays; i++)
+            dict[today.AddDays(-i)] = 0;
+
+        var sql = @"SELECT ended_at, words_revealed FROM reading_sessions WHERE ended_at IS NOT NULL";
+        using (var cmd = new SQLiteCommand(sql, _connection))
+        using (var reader = await cmd.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+            {
+                var endedMs = reader.GetInt64(0);
+                var wordsRevealed = reader.GetInt32(1);
+                var date = FromEpochMs(endedMs).Date;
+                if (dict.TryGetValue(date, out var current))
+                    dict[date] = current + wordsRevealed;
+                else if (date <= today && date > today.AddDays(-lastDays))
+                    dict[date] = wordsRevealed;
+            }
+        }
+
+        var list = new List<(DateTime, int)>(lastDays);
+        for (var i = lastDays - 1; i >= 0; i--)
+        {
+            var d = today.AddDays(-i);
+            list.Add((d, dict.TryGetValue(d, out var c) ? c : 0));
+        }
+        return list;
     }
 }

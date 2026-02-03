@@ -370,6 +370,39 @@ public class LiteDbStorageService : IStorageService
         return maxStreak;
     }
 
+    public Task<IReadOnlyList<(DateTime Date, int WordsRevealed)>> GetWordsRevealedByDayAsync(int lastDays)
+    {
+        return Task.Run(() =>
+        {
+            var today = DateTime.UtcNow.Date;
+            var dict = new Dictionary<DateTime, int>();
+            for (var i = 0; i < lastDays; i++)
+                dict[today.AddDays(-i)] = 0;
+
+            lock (_lock)
+            {
+                var sessions = Db().GetCollection<ReadingSession>("reading_sessions")
+                    .Find(x => x.EndedAt != null);
+                foreach (var s in sessions)
+                {
+                    var date = s.EndedAt!.Value.Date;
+                    if (dict.TryGetValue(date, out var current))
+                        dict[date] = current + s.WordsRevealed;
+                    else if (date <= today && date > today.AddDays(-lastDays))
+                        dict[date] = s.WordsRevealed;
+                }
+            }
+
+            var list = new List<(DateTime, int)>(lastDays);
+            for (var i = lastDays - 1; i >= 0; i--)
+            {
+                var d = today.AddDays(-i);
+                list.Add((d, dict.TryGetValue(d, out var c) ? c : 0));
+            }
+            return (IReadOnlyList<(DateTime, int)>)list;
+        });
+    }
+
     /// <summary>Wrapper so preferences collection has a document Id for LiteDB.</summary>
     private class PreferencesDoc
     {

@@ -43,4 +43,6 @@ public class UserPreferences
     public bool HasCompletedOnboarding { get; set; } = false;
     public bool NotificationsEnabled { get; set; } = false;
     public int DailyGoal { get; set; } = 30; // minutes
+    /// <summary>Library view mode: "Grid" or "List".</summary>
+    public string LibraryViewMode { get; set; } = "Grid";
 }

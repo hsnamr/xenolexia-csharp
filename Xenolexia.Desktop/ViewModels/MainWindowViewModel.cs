@@ -114,4 +114,24 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         IsReaderVisible = false;
     }
+
+    /// <summary>Switch to tab by index (0=Library, 1=Vocabulary, 2=Review, 3=Settings, 4=Statistics, 5=About). Used by keyboard shortcuts.</summary>
+    public void SwitchToTab(int index)
+    {
+        if (index >= 0 && index <= 5)
+            SelectedTabIndex = index;
+    }
+
+    [RelayCommand]
+    private void SwitchToTabByIndex(object? parameter)
+    {
+        var index = parameter switch
+        {
+            int i => i,
+            string s when int.TryParse(s, System.Globalization.NumberStyles.None, null, out var j) => j,
+            _ => -1
+        };
+        if (index >= 0 && index <= 5)
+            SelectedTabIndex = index;
+    }
 }

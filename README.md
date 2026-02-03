@@ -26,9 +26,9 @@ All features use **free and open source libraries compatible with GPL/AGPL/LGPL*
 | Feature | Status | Notes |
 |--------|--------|------|
 | **Multi-format** | ✅ | EPUB, PDF, TXT, FB2 via FOSS libs (VersOne.Epub, PdfPig, Fb2.Document); MOBI omitted (no FOSS full-text lib) |
-| **Customizable reader** | 🔲 | Fonts, themes (light/dark/sepia), margins, line spacing — planned |
-| **Progress** | ✅ | Bookmarking and progress on `Book` model; reader UI to persist — partial |
-| **Hover-to-reveal** | 🔲 | Translation popup on hover (desktop) — planned with TranslationService |
+| **Customizable reader** | ✅ | Fonts, themes (light/dark/sepia), margins, line spacing — ReaderSettings, persisted |
+| **Progress** | ✅ | Bookmarking and progress on `Book` model; reader persists on chapter change and close |
+| **Hover-to-reveal** | ✅ | Translation popup on hover (desktop); save to vocabulary from reader |
 
 ### Language Engine
 
@@ -45,9 +45,9 @@ All features use **free and open source libraries compatible with GPL/AGPL/LGPL*
 | Feature | Status | Notes |
 |--------|--------|------|
 | **Save words** | ✅ | From reader with context — StorageService |
-| **Spaced repetition (SM-2)** | 🔲 | For saved words — planned |
+| **Spaced repetition (SM-2)** | ✅ | GetVocabularyDueForReviewAsync, RecordReviewAsync (SM-2 in C#) |
 | **Vocabulary screen** | ✅ | Search, filter, edit, delete, export (CSV/Anki/JSON) |
-| **Review** | 🔲 | Flashcard-style review — planned |
+| **Review** | ✅ | Flashcard-style review — ReviewView, SM-2 grading (Again/Hard/Good/Easy/Already Knew) |
 
 ### Library
 
@@ -55,7 +55,7 @@ All features use **free and open source libraries compatible with GPL/AGPL/LGPL*
 |--------|--------|------|
 | **Import** | ✅ | Local files (EPUB, PDF, TXT, FB2, MOBI) — file picker, BookImportService |
 | **Discover** | ✅ | Project Gutenberg, Standard Ebooks, Open Library — BookDownloadService |
-| **Library view** | ✅ | Grid of books, add/delete — LibraryView |
+| **Library view** | ✅ | Grid/list toggle, book cards, add/delete — LibraryView |
 
 ---
 
@@ -85,7 +85,7 @@ xenolexia-csharp/
 dotnet restore
 
 # Desktop (Linux, macOS, Windows)
-cd Xenolexia.Linux
+cd Xenolexia.Desktop
 dotnet build
 dotnet run
 

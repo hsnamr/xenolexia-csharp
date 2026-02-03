@@ -22,9 +22,9 @@ This document maps the product concept to implementation status and to **free an
 | Feature | Status | FOSS approach |
 |--------|--------|----------------|
 | **Multi-format** | Done | **VersOne.Epub** for EPUB (metadata, TOC, chapters, cover). TXT/PDF minimal custom; FB2/MOBI import-only. |
-| **Customizable reader** | Planned | Avalonia controls; fonts, themes (light/dark/sepia), margins, line spacing — no extra lib. |
-| **Progress & bookmarking** | Partial | `Book` model has Progress, CurrentChapter, CurrentLocation; reader UI to persist on exit. |
-| **Hover-to-reveal** | Planned | Avalonia tooltip/popup + `ITranslationService` (LibreTranslate/MyMemory/Lingva). |
+| **Customizable reader** | Done | Avalonia controls; fonts, themes (light/dark/sepia), margins, line spacing; ReaderSettings persisted. |
+| **Progress & bookmarking** | Done | `Book` model has Progress, CurrentChapter, CurrentLocation; reader persists on chapter change and close. |
+| **Hover-to-reveal** | Done | Avalonia tooltip/popup on PointerEntered; save to vocabulary from reader. |
 
 ---
 
@@ -45,10 +45,10 @@ This document maps the product concept to implementation status and to **free an
 | Feature | Status | FOSS approach |
 |--------|--------|----------------|
 | **Save words with context** | Done | **StorageService** (SQLite); VocabularyItem with ContextSentence, BookId. |
-| **SM-2 spaced repetition** | Planned | Implement SM-2 in Core (formula is public domain); store interval/ease in VocabularyItem. |
+| **SM-2 spaced repetition** | Done | SM-2 in Core (StorageService.GetVocabularyDueForReviewAsync, RecordReviewAsync); interval/ease in VocabularyItem. |
 | **Vocabulary screen** | Done | VocabularyView: list, search, filter, edit, delete, export. |
 | **Export** | Done | **ExportService**: CSV, Anki TSV, JSON. |
-| **Review / flashcards** | Planned | New view + SM-2 scheduling; no extra lib. |
+| **Review / flashcards** | Done | ReviewView + SM-2 grading (Again/Hard/Good/Easy/Already Knew). |
 
 ---
 
@@ -89,7 +89,6 @@ The desktop app is **Xenolexia.Desktop** (Avalonia) — single codebase for Linu
 Planned additions (all FOSS):
 
 - **MyMemory** / **Lingva** (or similar) as translation fallbacks.
-- **SM-2** (spaced repetition): implement from public algorithm.
 - **Open frequency word lists** for frequency-based word selection.
 
 ---
