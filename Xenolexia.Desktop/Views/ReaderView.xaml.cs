@@ -1,5 +1,9 @@
+using System.Windows.Input;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using Xenolexia.Core.Models;
 
 namespace Xenolexia.Desktop.Views;
 
@@ -8,12 +12,17 @@ public partial class ReaderView : UserControl
     public ReaderView()
     {
         InitializeComponent();
-        // Words-revealed count: when ToolTip opening API is available, add handler here
-        // to call segment.NotifyRevealedCommand so session tracks hover-to-reveal count.
     }
 
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
+    }
+
+    private void OnForeignWordPointerEntered(object? sender, PointerEventArgs e)
+    {
+        if (sender is Border border && border.DataContext is ReaderContentSegment segment &&
+            segment.IsForeign && segment.NotifyRevealedCommand is ICommand cmd)
+            cmd.Execute(null);
     }
 }

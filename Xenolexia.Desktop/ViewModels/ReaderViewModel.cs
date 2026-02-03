@@ -191,6 +191,13 @@ public partial class ReaderViewModel : ViewModelBase
                 OnPropertyChanged(nameof(ShowSegments));
             }
         });
+
+        // Persist progress when chapter changes
+        Book.CurrentChapter = index;
+        Book.LastReadAt = DateTime.UtcNow;
+        if (_parsedBook != null && _parsedBook.Chapters.Count > 0)
+            Book.Progress = 100.0 * (index + 1) / _parsedBook.Chapters.Count;
+        try { await _storageService.UpdateBookAsync(Book); } catch { /* best-effort */ }
     }
 
     private void BuildContentSegments(ProcessedChapter processed)
@@ -232,8 +239,22 @@ public partial class ReaderViewModel : ViewModelBase
     private bool CanGoToChapter(int index) => _parsedBook != null && index >= 0 && index < _parsedBook.Chapters.Count;
 
     [RelayCommand]
-    private void Close()
+    private async Task CloseAsync()
     {
+        try
+        {
+            if (!string.IsNullOrEmpty(_sessionId))
+                await _storageService.EndReadingSessionAsync(_sessionId, _wordsRevealed, _wordsSaved);
+            Book.CurrentChapter = CurrentChapterIndex;
+            Book.LastReadAt = DateTime.UtcNow;
+            if (_parsedBook != null && _parsedBook.Chapters.Count > 0)
+                Book.Progress = 100.0 * (CurrentChapterIndex + 1) / _parsedBook.Chapters.Count;
+            await _storageService.UpdateBookAsync(Book);
+        }
+        catch
+        {
+            // Best-effort persist
+        }
         BookNavigation.CloseReader();
     }
 

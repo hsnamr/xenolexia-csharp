@@ -66,6 +66,9 @@ This document summarizes the implementation of the Xenolexia C# application. The
   - Filtering options (by status, language)
   - Configurable export options (include context, SRS data, book info)
 
+#### SM-2 and xenolexia-shared-c
+- **SRS (Spaced Repetition)**: SM-2 is implemented **in C#** in `StorageService` and `LiteDbStorageService` (same formula as `xenolexia-shared-c/sm2.c`). The C# app does not rely on P/Invoke to xenolexia-shared-c for SM-2, so it works without native libraries. **xenolexia-shared-c** remains in the repo and is used by **xenolexia-objc**; C# uses the in-C# implementation for simplicity and library availability.
+
 ## Project Structure
 
 ```

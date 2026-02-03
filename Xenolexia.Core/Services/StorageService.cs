@@ -553,42 +553,30 @@ public class StorageService : IStorageService
         return list;
     }
 
+    /// <summary>SM-2 implemented in C# (same formula as xenolexia-shared-c/sm2.c). xenolexia-shared-c remains for xenolexia-objc.</summary>
     public async Task RecordReviewAsync(string itemId, int quality)
     {
         var item = await GetVocabularyItemByIdAsync(itemId);
         if (item == null) return;
         double ef = item.EaseFactor;
         int iv = item.Interval;
-        int rc = item.ReviewCount; // native increments and returns new value
-        int statusInt = (int)item.Status;
-        if (Sm2Native.TryStep(quality, ref ef, ref iv, ref rc, ref statusInt))
+        int rc = item.ReviewCount + 1;
+        VocabularyStatus newStatus = item.Status;
+        if (quality >= 3)
         {
-            item.EaseFactor = ef;
-            item.Interval = iv;
-            item.ReviewCount = rc;
-            item.Status = (VocabularyStatus)statusInt;
+            if (iv == 0) iv = 1;
+            else if (iv == 1) iv = 6;
+            else iv = (int)Math.Round(iv * ef);
+            ef = Math.Max(1.3, ef + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)));
+            if (rc >= 5 && quality >= 4) newStatus = VocabularyStatus.Learned;
+            else if (rc >= 2) newStatus = VocabularyStatus.Review;
+            else newStatus = VocabularyStatus.Learning;
         }
-        else
-        {
-            // Fallback: in-C# SM-2 (same formula as xenolexia-shared-c/sm2.c)
-            rc = item.ReviewCount + 1;
-            VocabularyStatus newStatus = item.Status;
-            if (quality >= 3)
-            {
-                if (iv == 0) iv = 1;
-                else if (iv == 1) iv = 6;
-                else iv = (int)Math.Round(iv * ef);
-                ef = Math.Max(1.3, ef + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)));
-                if (rc >= 5 && quality >= 4) newStatus = VocabularyStatus.Learned;
-                else if (rc >= 2) newStatus = VocabularyStatus.Review;
-                else newStatus = VocabularyStatus.Learning;
-            }
-            else { iv = 0; newStatus = VocabularyStatus.Learning; }
-            item.Interval = iv;
-            item.EaseFactor = ef;
-            item.ReviewCount = rc;
-            item.Status = newStatus;
-        }
+        else { iv = 0; newStatus = VocabularyStatus.Learning; }
+        item.Interval = iv;
+        item.EaseFactor = ef;
+        item.ReviewCount = rc;
+        item.Status = newStatus;
         item.LastReviewedAt = DateTime.UtcNow;
         await UpdateVocabularyItemAsync(item);
     }

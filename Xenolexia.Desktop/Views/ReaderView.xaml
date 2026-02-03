@@ -83,7 +83,8 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="models:ReaderContentSegment">
                                 <Border Padding="0" Background="Transparent" Margin="0"
-                                        Classes.foreignword="{Binding IsForeign}">
+                                        Classes.foreignword="{Binding IsForeign}"
+                                        PointerEntered="OnForeignWordPointerEntered">
                                     <Border.Styles>
                                         <Style Selector="Border">
                                             <Setter Property="BorderBrush" Value="Transparent" />

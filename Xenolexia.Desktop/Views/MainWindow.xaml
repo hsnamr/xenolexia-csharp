@@ -11,7 +11,8 @@
 
     <Grid>
         <Grid RowDefinitions="*">
-            <TabControl Grid.Row="0" Margin="10" IsVisible="{Binding ShowTabs}">
+            <TabControl Grid.Row="0" Margin="10" IsVisible="{Binding ShowTabs}"
+                        SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}">
                 <TabItem Header="Library">
                     <ContentControl Content="{Binding LibraryView}" />
                 </TabItem>

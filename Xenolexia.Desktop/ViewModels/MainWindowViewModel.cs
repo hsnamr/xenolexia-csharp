@@ -18,6 +18,10 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IBookParserService _bookParserService;
     private readonly ITranslationService _translationService;
 
+    private readonly ReviewViewModel _reviewViewModel;
+    private readonly SettingsViewModel _settingsViewModel;
+    private readonly StatisticsViewModel _statisticsViewModel;
+
     public MainWindowViewModel()
     {
         var serviceProvider = Program.ServiceProvider ?? throw new InvalidOperationException("Services not initialized");
@@ -26,12 +30,16 @@ public partial class MainWindowViewModel : ViewModelBase
         _bookParserService = (IBookParserService)serviceProvider.GetService(typeof(IBookParserService))!;
         _translationService = (ITranslationService)serviceProvider.GetService(typeof(ITranslationService))!;
 
+        _reviewViewModel = new ReviewViewModel(_storageService);
+        _settingsViewModel = new SettingsViewModel(_storageService);
+        _statisticsViewModel = new StatisticsViewModel(_storageService);
+
         LibraryView = new LibraryView();
         VocabularyView = new VocabularyView();
-        ReviewView = new ReviewView { DataContext = new ReviewViewModel(_storageService) };
+        ReviewView = new ReviewView { DataContext = _reviewViewModel };
         AboutView = new AboutView();
-        SettingsView = new SettingsView { DataContext = new SettingsViewModel(_storageService) };
-        StatisticsView = new StatisticsView { DataContext = new StatisticsViewModel(_storageService) };
+        SettingsView = new SettingsView { DataContext = _settingsViewModel };
+        StatisticsView = new StatisticsView { DataContext = _statisticsViewModel };
         var onboardingVm = new OnboardingViewModel(_storageService, CompleteOnboarding);
         OnboardingView = new OnboardingView { DataContext = onboardingVm };
 
@@ -46,6 +54,21 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowTabs))]
     private bool _showOnboarding = true;
+
+    private int _selectedTabIndex;
+    public int SelectedTabIndex
+    {
+        get => _selectedTabIndex;
+        set
+        {
+            if (SetProperty(ref _selectedTabIndex, value))
+            {
+                if (value == 2) _ = _reviewViewModel.LoadDueAsync();
+                else if (value == 3) _ = _settingsViewModel.LoadAsync();
+                else if (value == 4) _ = _statisticsViewModel.LoadAsync();
+            }
+        }
+    }
 
     [ObservableProperty]
     private ReaderView? _readerView;
