@@ -39,4 +39,7 @@ public interface IStorageService
 
     /// <summary>Get the active (not yet ended) reading session for the book, if any.</summary>
     Task<ReadingSession?> GetActiveSessionForBookAsync(string bookId);
+
+    /// <summary>Aggregate reading and vocabulary stats for the Statistics screen.</summary>
+    Task<ReadingStats> GetReadingStatsAsync();
 }

@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Xenolexia.Desktop.ViewModels"
+             xmlns:models="using:Xenolexia.Core.Models"
+             x:Class="Xenolexia.Desktop.Views.ReviewView"
+             x:DataType="vm:ReviewViewModel">
+
+    <ScrollViewer>
+        <StackPanel Margin="24" Spacing="24" MaxWidth="560">
+            <!-- Stats -->
+            <Grid ColumnDefinitions="*,*">
+                <TextBlock Grid.Column="0" Text="{Binding DueCount, StringFormat='Due today: {0}'}" FontWeight="SemiBold" />
+                <TextBlock Grid.Column="1" Text="{Binding ReviewedCount, StringFormat='Reviewed: {0}'}" FontWeight="SemiBold" HorizontalAlignment="Right" />
+            </Grid>
+
+            <!-- No cards due -->
+            <Border Padding="32" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                    CornerRadius="8" IsVisible="{Binding HasNoDue}">
+                <TextBlock Text="No cards due right now. Check back later or add more words from the reader."
+                           TextWrapping="Wrap" HorizontalAlignment="Center" TextAlignment="Center" />
+            </Border>
+
+            <!-- Card -->
+            <Border Padding="32" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                    BorderThickness="1" CornerRadius="8" MinHeight="200"
+                    IsVisible="{Binding HasCurrentCard}">
+                <StackPanel Spacing="16">
+                    <!-- Front: foreign word -->
+                    <TextBlock Text="{Binding CurrentItem.TargetWord}" FontSize="28" FontWeight="SemiBold"
+                               TextAlignment="Center" IsVisible="{Binding ShowFront}" />
+                    <!-- Back: source word + context -->
+                    <StackPanel Spacing="8" IsVisible="{Binding IsFlipped}">
+                        <TextBlock Text="{Binding CurrentItem.SourceWord}" FontSize="24" FontWeight="SemiBold" TextAlignment="Center" />
+                        <TextBlock Text="{Binding CurrentItem.ContextSentence}" TextWrapping="Wrap" Opacity="0.9"
+                                   IsVisible="{Binding CurrentItem.ContextSentence, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                    </StackPanel>
+                    <!-- Flip button (when not flipped) -->
+                    <Button Content="Show answer" Command="{Binding FlipCommand}" HorizontalAlignment="Center"
+                            IsVisible="{Binding ShowFront}" />
+                </StackPanel>
+            </Border>
+
+            <!-- Grade buttons (when flipped) -->
+            <StackPanel IsVisible="{Binding ShowGradeButtons}" Spacing="8">
+                <TextBlock Text="How did you know it?" FontSize="14" Opacity="0.9" />
+                <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Button Content="Again (0)" Command="{Binding GradeCommand}" CommandParameter="0" Margin="0,0,6,6" />
+                    <Button Content="Hard (1)" Command="{Binding GradeCommand}" CommandParameter="1" Margin="0,0,6,6" />
+                    <Button Content="Good (3)" Command="{Binding GradeCommand}" CommandParameter="3" Margin="0,0,6,6" />
+                    <Button Content="Easy (4)" Command="{Binding GradeCommand}" CommandParameter="4" Margin="0,0,6,6" />
+                    <Button Content="Already knew (5)" Command="{Binding GradeCommand}" CommandParameter="5" Margin="0,0,6,6" />
+                </WrapPanel>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

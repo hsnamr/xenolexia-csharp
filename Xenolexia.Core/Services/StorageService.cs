@@ -548,4 +548,101 @@ public class StorageService : IStorageService
         if (string.IsNullOrWhiteSpace(s)) return defaultValue;
         return double.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : defaultValue;
     }
+
+    public async Task<ReadingStats> GetReadingStatsAsync()
+    {
+        if (_connection == null) throw new InvalidOperationException("Database not initialized");
+
+        var todayUtc = DateTime.UtcNow.Date;
+        var bookIds = new HashSet<string>();
+        var totalSeconds = 0;
+        var sessionCount = 0;
+        var wordsRevealedToday = 0;
+        var wordsSavedToday = 0;
+        var sessionDates = new List<DateTime>();
+
+        var sql = @"SELECT book_id, started_at, ended_at, words_revealed, words_saved
+                    FROM reading_sessions WHERE ended_at IS NOT NULL";
+        using (var cmd = new SQLiteCommand(sql, _connection))
+        using (var reader = await cmd.ExecuteReaderAsync())
+        {
+            while (await reader.ReadAsync())
+            {
+                var bookId = reader.GetString(0);
+                var startedMs = reader.GetInt64(1);
+                var endedMs = reader.GetInt64(2);
+                var wordsRevealed = reader.GetInt32(3);
+                var wordsSaved = reader.GetInt32(4);
+
+                bookIds.Add(bookId);
+                var durationSec = (int)((endedMs - startedMs) / 1000);
+                totalSeconds += durationSec;
+                sessionCount++;
+
+                var endedDate = FromEpochMs(endedMs).Date;
+                sessionDates.Add(endedDate);
+                if (endedDate == todayUtc)
+                {
+                    wordsRevealedToday += wordsRevealed;
+                    wordsSavedToday += wordsSaved;
+                }
+            }
+        }
+
+        var totalWordsLearned = 0;
+        using (var cmd = new SQLiteCommand("SELECT COUNT(*) FROM vocabulary WHERE status = 'learned'", _connection))
+        {
+            totalWordsLearned = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+        }
+
+        var distinctDates = sessionDates.Distinct().OrderByDescending(d => d).ToList();
+        var currentStreak = ComputeCurrentStreak(distinctDates, todayUtc);
+        var longestStreak = ComputeLongestStreak(distinctDates);
+        var avgSessionDuration = sessionCount > 0 ? (double)totalSeconds / sessionCount : 0;
+
+        return new ReadingStats
+        {
+            TotalBooksRead = bookIds.Count,
+            TotalReadingTime = totalSeconds,
+            TotalWordsLearned = totalWordsLearned,
+            CurrentStreak = currentStreak,
+            LongestStreak = longestStreak,
+            AverageSessionDuration = avgSessionDuration,
+            WordsRevealedToday = wordsRevealedToday,
+            WordsSavedToday = wordsSavedToday
+        };
+    }
+
+    private static int ComputeCurrentStreak(List<DateTime> distinctDatesDesc, DateTime todayUtc)
+    {
+        if (distinctDatesDesc.Count == 0) return 0;
+        var set = distinctDatesDesc.ToHashSet();
+        var mostRecent = distinctDatesDesc[0];
+        var streak = 0;
+        var d = mostRecent;
+        while (set.Contains(d))
+        {
+            streak++;
+            d = d.AddDays(-1);
+        }
+        return streak;
+    }
+
+    private static int ComputeLongestStreak(List<DateTime> distinctDates)
+    {
+        if (distinctDates.Count == 0) return 0;
+        var sorted = distinctDates.Distinct().OrderBy(d => d).ToList();
+        var maxStreak = 1;
+        var current = 1;
+        for (var i = 1; i < sorted.Count; i++)
+        {
+            var diff = (sorted[i] - sorted[i - 1]).Days;
+            if (diff == 1)
+                current++;
+            else
+                current = 1;
+            if (current > maxStreak) maxStreak = current;
+        }
+        return maxStreak;
+    }
 }

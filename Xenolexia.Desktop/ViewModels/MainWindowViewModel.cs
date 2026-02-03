@@ -28,8 +28,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
         LibraryView = new LibraryView();
         VocabularyView = new VocabularyView();
+        ReviewView = new ReviewView { DataContext = new ReviewViewModel(_storageService) };
         AboutView = new AboutView();
         SettingsView = new SettingsView { DataContext = new SettingsViewModel(_storageService) };
+        StatisticsView = new StatisticsView { DataContext = new StatisticsViewModel(_storageService) };
         var onboardingVm = new OnboardingViewModel(_storageService, CompleteOnboarding);
         OnboardingView = new OnboardingView { DataContext = onboardingVm };
 
@@ -52,7 +54,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public LibraryView LibraryView { get; }
     public VocabularyView VocabularyView { get; }
+    public ReviewView ReviewView { get; }
     public SettingsView SettingsView { get; }
+    public StatisticsView StatisticsView { get; }
     public AboutView AboutView { get; }
     public OnboardingView OnboardingView { get; }
 

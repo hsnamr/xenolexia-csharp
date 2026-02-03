@@ -1,0 +1,55 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Xenolexia.Desktop.ViewModels"
+             x:Class="Xenolexia.Desktop.Views.StatisticsView"
+             x:DataType="vm:StatisticsViewModel">
+
+    <ScrollViewer>
+        <StackPanel Margin="24" Spacing="20" MaxWidth="520">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="Statistics" FontSize="24" FontWeight="Bold" />
+                <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshCommand}" />
+            </Grid>
+
+            <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsLoading}" Margin="0,0,0,8" />
+
+            <StackPanel IsVisible="{Binding NotLoading}" Spacing="16">
+                <Border Padding="16" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                        CornerRadius="8" BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                        BorderThickness="1">
+                    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+                        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+                            <TextBlock Text="Books read" />
+                            <TextBlock Grid.Column="1" Text="{Binding TotalBooksRead}" FontWeight="SemiBold" />
+                        </Grid>
+                        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+                            <TextBlock Text="Total reading time (min)" />
+                            <TextBlock Grid.Column="1" Text="{Binding TotalReadingTimeMinutes}" FontWeight="SemiBold" />
+                        </Grid>
+                        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+                            <TextBlock Text="Words learned" />
+                            <TextBlock Grid.Column="1" Text="{Binding TotalWordsLearned}" FontWeight="SemiBold" />
+                        </Grid>
+                        <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+                            <TextBlock Text="Current streak (days)" />
+                            <TextBlock Grid.Column="1" Text="{Binding CurrentStreak}" FontWeight="SemiBold" />
+                        </Grid>
+                        <Grid Grid.Row="4" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+                            <TextBlock Text="Longest streak (days)" />
+                            <TextBlock Grid.Column="1" Text="{Binding LongestStreak}" FontWeight="SemiBold" />
+                        </Grid>
+                        <Grid Grid.Row="5" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+                            <TextBlock Text="Words revealed today" />
+                            <TextBlock Grid.Column="1" Text="{Binding WordsRevealedToday}" FontWeight="SemiBold" />
+                        </Grid>
+                        <Grid Grid.Row="6" ColumnDefinitions="*,Auto" Margin="0,0,0,0">
+                            <TextBlock Text="Words saved today" />
+                            <TextBlock Grid.Column="1" Text="{Binding WordsSavedToday}" FontWeight="SemiBold" />
+                        </Grid>
+                    </Grid>
+                </Border>
+                <TextBlock Text="{Binding AverageSessionDurationMinutes, StringFormat='Average session: {0:F0} min'}" Opacity="0.9" FontSize="12" />
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

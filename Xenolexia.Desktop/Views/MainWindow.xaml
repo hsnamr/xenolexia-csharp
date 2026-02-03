@@ -18,8 +18,14 @@
                 <TabItem Header="Vocabulary">
                     <ContentControl Content="{Binding VocabularyView}" />
                 </TabItem>
+                <TabItem Header="Review">
+                    <ContentControl Content="{Binding ReviewView}" />
+                </TabItem>
                 <TabItem Header="Settings">
                     <ContentControl Content="{Binding SettingsView}" />
+                </TabItem>
+                <TabItem Header="Statistics">
+                    <ContentControl Content="{Binding StatisticsView}" />
                 </TabItem>
                 <TabItem Header="About">
                     <ContentControl Content="{Binding AboutView}" />
