@@ -33,23 +33,27 @@
         <!-- Content: segments when we have them, else single text block. Theme/font from ReaderSettings. -->
         <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
                      IsVisible="{Binding NotLoading}">
-            <Border x:Name="ReaderContentPanel" Padding="0" Background="Transparent"
+            <!-- Fallback: explicit background and text color so content is never invisible (e.g. black on black) -->
+            <Border x:Name="ReaderContentPanel" Padding="0" Background="#FFFFFF"
                     Classes.reader_theme_light="{Binding ReaderSettings.Theme, Converter={x:Static converters:EnumEqualsConverter.Instance}, ConverterParameter=Light}"
                     Classes.reader_theme_dark="{Binding ReaderSettings.Theme, Converter={x:Static converters:EnumEqualsConverter.Instance}, ConverterParameter=Dark}"
                     Classes.reader_theme_sepia="{Binding ReaderSettings.Theme, Converter={x:Static converters:EnumEqualsConverter.Instance}, ConverterParameter=Sepia}">
                 <Border.Styles>
+                    <!-- Light: white bg, black text (also used as fallback when no theme class matches) -->
                     <Style Selector="Border.reader_theme_light">
                         <Setter Property="Background" Value="#FFFFFF" />
                     </Style>
                     <Style Selector="Border.reader_theme_light TextBlock">
                         <Setter Property="Foreground" Value="#000000" />
                     </Style>
+                    <!-- Dark: dark gray bg, light gray text -->
                     <Style Selector="Border.reader_theme_dark">
                         <Setter Property="Background" Value="#1E1E1E" />
                     </Style>
                     <Style Selector="Border.reader_theme_dark TextBlock">
                         <Setter Property="Foreground" Value="#E0E0E0" />
                     </Style>
+                    <!-- Sepia: cream bg, brown text -->
                     <Style Selector="Border.reader_theme_sepia">
                         <Setter Property="Background" Value="#F4ECD8" />
                     </Style>
@@ -63,8 +67,14 @@
                                FontFamily="{Binding ReaderSettings.FontFamily}"
                                LineHeight="{Binding ReaderSettings.LineHeight}"
                                IsVisible="{Binding HasChapters}" />
-                    <!-- Content as segments: plain text and foreign words (with tooltip + Save) -->
-                    <ItemsControl ItemsSource="{Binding ContentSegments}">
+                    <!-- Primary content: show chapter text. When no segments use this block; when segments exist use ItemsControl below. -->
+                    <TextBlock Text="{Binding CurrentChapterContent}" TextWrapping="Wrap"
+                               FontSize="{Binding ReaderSettings.FontSize}"
+                               FontFamily="{Binding ReaderSettings.FontFamily}"
+                               LineHeight="{Binding ReaderSettings.LineHeight}"
+                               IsVisible="{Binding ShowFallbackContent}" />
+                    <!-- Segment-based content (interactive foreign words); shown when ContentSegments has items -->
+                    <ItemsControl ItemsSource="{Binding ContentSegments}" IsVisible="{Binding ShowSegments}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <WrapPanel Orientation="Horizontal" />

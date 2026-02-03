@@ -41,12 +41,12 @@ class Program
 
     public static async Task InitializeServicesAsync()
     {
-        var databasePath = Path.Combine(
+        var xenolexiaDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".xenolexia",
-            "xenolexia.db");
+            ".xenolexia");
+        var databasePath = Path.Combine(xenolexiaDir, "xenolexia.litedb");
         
-        Directory.CreateDirectory(Path.GetDirectoryName(databasePath)!);
+        Directory.CreateDirectory(xenolexiaDir);
 
         var storageService = new LiteDbStorageService(databasePath);
         await storageService.InitializeAsync();

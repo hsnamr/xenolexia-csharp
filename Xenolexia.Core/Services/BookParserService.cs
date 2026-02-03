@@ -7,9 +7,9 @@ using UglyToad.PdfPig;
 namespace Xenolexia.Core.Services;
 
 /// <summary>
-/// Book parser service. EPUB/PDF/FB2/MOBI use xenolexia-shared-c when native libraries are available;
-/// otherwise fallback: EPUB = VersOne.Epub, PDF = PdfPig, FB2 = Fb2.Document. MOBI requires native lib.
-/// TXT = .NET BCL.
+/// Book parser service. EPUB is parsed with VersOne.Epub (Unlicense, FOSS; primary for reliability).
+/// Optional: EpubNative (xenolexia-shared-c) is tried first when native lib is available.
+/// PDF = PdfPig, FB2 = Fb2.Document, MOBI = native lib only. TXT = .NET BCL.
 /// </summary>
 public class BookParserService : IBookParserService
 {
@@ -99,8 +99,9 @@ public class BookParserService : IBookParserService
 
     private static async Task<ParsedBook> ParseEpubAsync(string filePath)
     {
+        // Prefer VersOne.Epub (reputable FOSS, Unlicense) for consistent chapter content; optional native fallback
         var nativeBook = EpubNative.TryParseEpub(filePath);
-        if (nativeBook != null)
+        if (nativeBook != null && nativeBook.Chapters.Count > 0 && nativeBook.Chapters.Any(c => !string.IsNullOrWhiteSpace(c.Content)))
             return await Task.FromResult(nativeBook);
         var book = await EpubReader.ReadBookAsync(filePath);
         var metadata = new BookMetadata

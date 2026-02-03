@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Xenolexia.Core.Models;
@@ -53,6 +54,11 @@ public partial class ReaderViewModel : ViewModelBase
     [ObservableProperty]
     private bool _hasChapters = true;
 
+    /// <summary>True when ContentSegments is empty; show CurrentChapterContent as fallback in view.</summary>
+    public bool ShowFallbackContent => ContentSegments.Count == 0;
+    /// <summary>True when ContentSegments has items; show segment-based content.</summary>
+    public bool ShowSegments => ContentSegments.Count > 0;
+
     /// <summary>Reader appearance from preferences; applied in ReaderView.</summary>
     [ObservableProperty]
     private ReaderSettings _readerSettings = new();
@@ -73,6 +79,8 @@ public partial class ReaderViewModel : ViewModelBase
         IsLoading = true;
         Error = null;
         ContentSegments.Clear();
+        OnPropertyChanged(nameof(ShowFallbackContent));
+        OnPropertyChanged(nameof(ShowSegments));
         _sessionId = null;
         _wordsRevealed = 0;
         _wordsSaved = 0;
@@ -89,20 +97,25 @@ public partial class ReaderViewModel : ViewModelBase
             ReaderSettings = prefs.ReaderSettings;
 
             _parsedBook = await _parser.ParseBookAsync(_filePath);
-            BookTitle = _parsedBook.Metadata.Title;
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                BookTitle = _parsedBook.Metadata.Title;
+                if (_parsedBook.Chapters.Count == 0)
+                {
+                    HasChapters = false;
+                    CurrentChapterContent = "This format is not yet supported for reading (e.g. MOBI).";
+                    return;
+                }
+                Book.TotalChapters = _parsedBook.Chapters.Count;
+                foreach (var item in _parsedBook.TableOfContents)
+                    TableOfContents.Add(item);
+                foreach (var ch in _parsedBook.Chapters)
+                    Chapters.Add(ch);
+            });
 
             if (_parsedBook.Chapters.Count == 0)
-            {
-                HasChapters = false;
-                CurrentChapterContent = "This format is not yet supported for reading (e.g. MOBI).";
                 return;
-            }
-
-            Book.TotalChapters = _parsedBook.Chapters.Count;
-            foreach (var item in _parsedBook.TableOfContents)
-                TableOfContents.Add(item);
-            foreach (var ch in _parsedBook.Chapters)
-                Chapters.Add(ch);
 
             _sessionId = await _storageService.StartReadingSessionAsync(Book.Id);
 
@@ -111,12 +124,16 @@ public partial class ReaderViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            Error = ex.Message;
-            CurrentChapterContent = "Failed to load the book.";
+            var msg = ex.Message;
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                Error = msg;
+                CurrentChapterContent = "Failed to load the book.";
+            });
         }
         finally
         {
-            IsLoading = false;
+            await Dispatcher.UIThread.InvokeAsync(() => IsLoading = false);
         }
     }
 
@@ -126,10 +143,7 @@ public partial class ReaderViewModel : ViewModelBase
         if (_parsedBook == null || index < 0 || index >= _parsedBook.Chapters.Count)
             return;
 
-        CurrentChapterIndex = index;
         var chapter = _parsedBook.Chapters[index];
-        CurrentChapterTitle = chapter.Title;
-
         var raw = chapter.Content;
         var contentToProcess = LooksLikeHtml(raw) ? HtmlToPlainText.ToPlainText(raw) : raw;
         var chapterForEngine = new Chapter
@@ -156,22 +170,34 @@ public partial class ReaderViewModel : ViewModelBase
             // Fallback to raw content if processing fails
         }
 
-        if (processed != null && processed.ForeignWords.Count > 0)
+        var processedCopy = processed;
+        var contentCopy = contentToProcess;
+        var chapterTitle = chapter.Title;
+        await Dispatcher.UIThread.InvokeAsync(() =>
         {
-            CurrentChapterContent = processed.ProcessedContent;
-            BuildContentSegments(processed);
-        }
-        else
-        {
-            CurrentChapterContent = contentToProcess;
-            ContentSegments.Clear();
-            ContentSegments.Add(new ReaderContentSegment { Text = contentToProcess, IsForeign = false });
-        }
+            CurrentChapterIndex = index;
+            CurrentChapterTitle = chapterTitle;
+            if (processedCopy != null && processedCopy.ForeignWords.Count > 0)
+            {
+                CurrentChapterContent = processedCopy.ProcessedContent;
+                BuildContentSegments(processedCopy);
+            }
+            else
+            {
+                CurrentChapterContent = contentCopy;
+                ContentSegments.Clear();
+                // Do not add a single segment: keep ShowFallbackContent true so the view shows CurrentChapterContent in the TextBlock
+                OnPropertyChanged(nameof(ShowFallbackContent));
+                OnPropertyChanged(nameof(ShowSegments));
+            }
+        });
     }
 
     private void BuildContentSegments(ProcessedChapter processed)
     {
         ContentSegments.Clear();
+        OnPropertyChanged(nameof(ShowFallbackContent));
+        OnPropertyChanged(nameof(ShowSegments));
         var sorted = processed.ForeignWords.OrderBy(f => f.StartIndex).ToList();
         var pos = 0;
         foreach (var fw in sorted)
@@ -199,6 +225,8 @@ public partial class ReaderViewModel : ViewModelBase
             if (tail.Length > 0)
                 ContentSegments.Add(new ReaderContentSegment { Text = tail, IsForeign = false });
         }
+        OnPropertyChanged(nameof(ShowFallbackContent));
+        OnPropertyChanged(nameof(ShowSegments));
     }
 
     private bool CanGoToChapter(int index) => _parsedBook != null && index >= 0 && index < _parsedBook.Chapters.Count;
