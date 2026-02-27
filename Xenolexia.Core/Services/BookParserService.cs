@@ -1,9 +1,9 @@
 using System.Text;
 using Fb2.Document.Constants;
-using EpubCore;
-using EpubCore.Format;
-using Xenolexia.Core.Models;
+using HtmlAgilityPack;
 using UglyToad.PdfPig;
+using VersOne.Epub;
+using Xenolexia.Core.Models;
 
 namespace Xenolexia.Core.Services;
 
@@ -65,30 +65,23 @@ public class BookParserService : IBookParserService
         var format = DetectFormat(filePath);
         if (format == BookFormat.Epub)
         {
-            EpubBook book;
             try
             {
-                book = await Task.Run(() => EpubReader.Read(filePath));
+                var book = await EpubReader.ReadBookAsync(filePath);
+                if (book == null)
+                    return new BookMetadata { Title = "Unknown", Subjects = new List<string>() };
+                return new BookMetadata
+                {
+                    Title = book.Title ?? "Unknown",
+                    Author = book.Author ?? (book.AuthorList != null && book.AuthorList.Count > 0 ? string.Join(", ", book.AuthorList) : null),
+                    Description = book.Description,
+                    Subjects = new List<string>()
+                };
             }
             catch (Exception ex)
             {
                 throw new InvalidOperationException($"EPUB file could not be read: {filePath}. The file may be corrupted or invalid.", ex);
             }
-            if (book == null)
-                throw new InvalidOperationException($"EPUB reader returned no book for: {filePath}");
-            if (book.Format?.Opf?.Metadata == null)
-                return new BookMetadata { Title = "Unknown", Subjects = new List<string>() };
-            return new BookMetadata
-            {
-                Title = book.Title ?? "Unknown",
-                Author = book.Authors != null && book.Authors.Cast<object>().Any() ? string.Join(", ", book.Authors) : null,
-                Description = null,
-                Language = null,
-                Publisher = null,
-                PublishDate = null,
-                Isbn = null,
-                Subjects = new List<string>()
-            };
         }
         if (format == BookFormat.Pdf)
             return await GetPdfMetadataAsync(filePath);
@@ -134,7 +127,7 @@ public class BookParserService : IBookParserService
         EpubBook book;
         try
         {
-            book = await Task.Run(() => EpubReader.Read(filePath));
+            book = await EpubReader.ReadBookAsync(filePath);
         }
         catch (Exception ex)
         {
@@ -146,125 +139,130 @@ public class BookParserService : IBookParserService
         var metadata = new BookMetadata
         {
             Title = book.Title ?? "Unknown",
-            Author = book.Authors != null && book.Authors.Cast<object>().Any() ? string.Join(", ", book.Authors) : null,
-            Description = null,
+            Author = book.Author ?? (book.AuthorList != null && book.AuthorList.Count > 0 ? string.Join(", ", book.AuthorList) : null),
+            Description = book.Description,
             Subjects = new List<string>()
         };
 
         var chapters = new List<Chapter>();
-        // Prefer HTML in reading order (EpubCore) when available
-        var htmlInOrder = book.SpecialResources?.HtmlInReadingOrder;
-        if (htmlInOrder != null && htmlInOrder.Count > 0)
-        {
-            var index = 0;
-            foreach (var html in htmlInOrder)
-            {
-                if (html == null) continue;
-                var content = html.TextContent ?? "";
-                var fileName = html.FileName ?? "";
-                var normalizedHref = NormalizeHref(fileName);
-                var tocChapter = book.TableOfContents?.FirstOrDefault(c =>
-                    string.Equals(NormalizeHref(c.RelativePath ?? c.AbsolutePath ?? ""), normalizedHref, StringComparison.OrdinalIgnoreCase));
-                var wordCount = content.Split(new[] { ' ', '\n', '\r', '\t', '<', '>', '/' }, StringSplitOptions.RemoveEmptyEntries).Length;
-                chapters.Add(new Chapter
-                {
-                    Id = $"chapter-{index}",
-                    Title = tocChapter?.Title ?? $"Chapter {index + 1}",
-                    Index = index,
-                    Content = content,
-                    WordCount = wordCount,
-                    Href = fileName
-                });
-                index++;
-            }
-        }
-        else
-        {
-            var opf = book.Format?.Opf;
-            var htmlByHref = (book.Resources?.Html ?? Array.Empty<EpubTextFile>())
-                .ToDictionary(f => NormalizeHref(f.FileName), f => f.TextContent ?? "", StringComparer.OrdinalIgnoreCase);
-            var manifestItems = opf?.Manifest?.Items ?? Array.Empty<OpfManifestItem>();
-            var manifestById = manifestItems.ToDictionary(m => m.Id ?? "", m => m.Href ?? "", StringComparer.OrdinalIgnoreCase);
+        var readingOrder = book.ReadingOrder ?? new List<EpubLocalTextContentFile>();
 
-            if (opf?.Spine?.ItemRefs != null && opf.Spine.ItemRefs.Count > 0)
-            {
-                var index = 0;
-                foreach (var itemRef in opf.Spine.ItemRefs)
-                {
-                    var idRef = itemRef.IdRef ?? "";
-                    if (!manifestById.TryGetValue(idRef, out var href))
-                        continue;
-                    var normalizedHref = NormalizeHref(href);
-                    if (!htmlByHref.TryGetValue(normalizedHref, out var content))
-                        content = "";
-                    var wordCount = content.Split(new[] { ' ', '\n', '\r', '\t', '<', '>', '/' }, StringSplitOptions.RemoveEmptyEntries).Length;
-                    var tocChapter = book.TableOfContents?.FirstOrDefault(c =>
-                        string.Equals(NormalizeHref(c.RelativePath ?? c.AbsolutePath ?? ""), normalizedHref, StringComparison.OrdinalIgnoreCase));
-                    chapters.Add(new Chapter
-                    {
-                        Id = $"chapter-{index}",
-                        Title = tocChapter?.Title ?? $"Chapter {index + 1}",
-                        Index = index,
-                        Content = content,
-                        WordCount = wordCount,
-                        Href = href
-                    });
-                    index++;
-                }
-            }
+        for (var index = 0; index < readingOrder.Count; index++)
+        {
+            var file = readingOrder[index];
+            var htmlContent = file.Content ?? string.Empty;
+            var plainText = ExtractPlainTextFromHtml(htmlContent);
+            var wordCount = CountWords(plainText);
+            var title = GetChapterTitle(book, file, index);
 
-            if (chapters.Count == 0 && book.Resources?.Html != null)
+            chapters.Add(new Chapter
             {
-                var idx = 0;
-                foreach (var html in book.Resources.Html)
-                {
-                    if (html == null) continue;
-                    var content = html.TextContent ?? "";
-                    var wordCount = content.Split(new[] { ' ', '\n', '\r', '\t', '<', '>', '/' }, StringSplitOptions.RemoveEmptyEntries).Length;
-                    chapters.Add(new Chapter
-                    {
-                        Id = $"chapter-{idx}",
-                        Title = $"Chapter {idx + 1}",
-                        Index = idx,
-                        Content = content,
-                        WordCount = wordCount,
-                        Href = html.FileName ?? ""
-                    });
-                    idx++;
-                }
-            }
+                Id = $"chapter-{index}",
+                Title = title,
+                Index = index,
+                Content = htmlContent,
+                WordCount = wordCount,
+                Href = file.FilePath ?? string.Empty
+            });
         }
 
-        var toc = new List<TableOfContentsItem>();
-        if (book.TableOfContents != null)
-        {
-            foreach (var ch in book.TableOfContents)
-            {
-                if (ch == null) continue;
-                toc.Add(new TableOfContentsItem
-                {
-                    Id = ch.Title ?? "",
-                    Title = ch.Title ?? "",
-                    Href = ch.RelativePath ?? ch.AbsolutePath ?? "",
-                    Level = 0
-                });
-            }
-        }
+        var toc = BuildTableOfContents(book.Navigation);
 
         return new ParsedBook
         {
-            Metadata = metadata ?? new BookMetadata { Title = "Unknown", Subjects = new List<string>() },
-            Chapters = chapters ?? new List<Chapter>(),
-            TableOfContents = toc ?? new List<TableOfContentsItem>(),
-            TotalWordCount = chapters?.Sum(c => c?.WordCount ?? 0) ?? 0
+            Metadata = metadata,
+            Chapters = chapters,
+            TableOfContents = toc,
+            TotalWordCount = chapters.Sum(c => c.WordCount)
         };
     }
 
-    private static string NormalizeHref(string href)
+    /// <summary>
+    /// Extracts plain text from EPUB HTML using HtmlAgilityPack (per VersOne.Epub recommendations).
+    /// </summary>
+    private static string ExtractPlainTextFromHtml(string html)
     {
-        if (string.IsNullOrEmpty(href)) return "";
-        var u = href.Replace('\\', '/').TrimStart('/');
-        return u;
+        if (string.IsNullOrWhiteSpace(html))
+            return string.Empty;
+
+        var doc = new HtmlDocument();
+        doc.LoadHtml(html);
+
+        var sb = new StringBuilder();
+        var textNodes = doc.DocumentNode.SelectNodes("//text()");
+        if (textNodes == null)
+            return doc.DocumentNode.InnerText?.Trim() ?? string.Empty;
+
+        foreach (var node in textNodes)
+        {
+            var text = node.InnerText?.Trim();
+            if (string.IsNullOrEmpty(text))
+                continue;
+            if (sb.Length > 0)
+                sb.Append(' ');
+            sb.Append(text);
+        }
+
+        return sb.ToString().Trim();
+    }
+
+    private static int CountWords(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return 0;
+        return text.Split(new[] { ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries).Length;
+    }
+
+    private static string GetChapterTitle(EpubBook book, EpubLocalTextContentFile file, int index)
+    {
+        if (book.Navigation == null)
+            return $"Chapter {index + 1}";
+
+        var fileName = file.FilePath ?? string.Empty;
+        var navItem = FindNavigationByFile(book.Navigation, fileName);
+        return !string.IsNullOrWhiteSpace(navItem?.Title) ? navItem.Title : $"Chapter {index + 1}";
+    }
+
+    private static EpubNavigationItem? FindNavigationByFile(List<EpubNavigationItem> items, string fileName)
+    {
+        foreach (var item in items)
+        {
+            var linkPath = item.Link?.ContentFilePath ?? string.Empty;
+            if (!string.IsNullOrEmpty(linkPath) && linkPath.EndsWith(fileName, StringComparison.OrdinalIgnoreCase))
+                return item;
+            if (item.NestedItems != null)
+            {
+                var found = FindNavigationByFile(item.NestedItems, fileName);
+                if (found != null)
+                    return found;
+            }
+        }
+        return null;
+    }
+
+    private static List<TableOfContentsItem> BuildTableOfContents(List<EpubNavigationItem>? navigation)
+    {
+        var result = new List<TableOfContentsItem>();
+        if (navigation == null)
+            return result;
+
+        void AddItems(IEnumerable<EpubNavigationItem> items, int level)
+        {
+            foreach (var item in items)
+            {
+                result.Add(new TableOfContentsItem
+                {
+                    Id = item.Title ?? string.Empty,
+                    Title = item.Title ?? string.Empty,
+                    Href = item.Link?.ContentFilePath ?? string.Empty,
+                    Level = level
+                });
+                if (item.NestedItems != null && item.NestedItems.Count > 0)
+                    AddItems(item.NestedItems, level + 1);
+            }
+        }
+        AddItems(navigation, 0);
+        return result;
     }
 
     private static async Task<ParsedBook> ParsePdfAsync(string filePath)

@@ -105,9 +105,9 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         var vm = new ReaderViewModel(book, _bookParserService, _translationService, _storageService);
         var view = new ReaderView { DataContext = vm };
-        await vm.LoadAsync();
         ReaderView = view;
         IsReaderVisible = true;
+        await vm.LoadAsync();
     }
 
     private void OnCloseReaderRequested()

@@ -1,10 +1,10 @@
 using System.Net.Http;
-using EpubCore;
+using VersOne.Epub;
 
 namespace Xenolexia.Core.Services;
 
 /// <summary>
-/// Image processing using EpubCore for EPUB cover extraction and HttpClient for URL covers.
+/// Image processing using VersOne.Epub for EPUB cover extraction and HttpClient for URL covers.
 /// </summary>
 public class ImageProcessingService : IImageProcessingService
 {
@@ -32,7 +32,7 @@ public class ImageProcessingService : IImageProcessingService
             EpubBook book;
             try
             {
-                book = await Task.Run(() => EpubReader.Read(epubPath));
+                book = await EpubReader.ReadBookAsync(epubPath);
             }
             catch (Exception ex)
             {
@@ -44,21 +44,24 @@ public class ImageProcessingService : IImageProcessingService
 
             byte[]? coverBytes = null;
             var extension = ".jpg";
-            if (book.CoverImage is byte[] bytes && bytes.Length > 0)
+            if (book.CoverImage != null && book.CoverImage.Length > 0)
             {
-                coverBytes = bytes;
+                coverBytes = book.CoverImage;
             }
-            else if (!string.IsNullOrEmpty(book.CoverImageHref) && book.Resources?.Images != null)
+            else if (book.Content?.Cover != null && book.Content.Cover.Content != null && book.Content.Cover.Content.Length > 0)
             {
-                var href = book.CoverImageHref.Replace('\\', '/').TrimStart('/');
-                var img = book.Resources.Images.FirstOrDefault(i => string.Equals((i.Href ?? "").Replace('\\', '/'), href, StringComparison.OrdinalIgnoreCase));
-                if (img?.Content != null && img.Content.Length > 0)
-                {
-                    coverBytes = img.Content;
-                    var imgExt = Path.GetExtension(img.Href ?? "").ToLowerInvariant();
-                    if (!string.IsNullOrEmpty(imgExt) && imgExt.Length <= 5)
-                        extension = imgExt;
-                }
+                coverBytes = book.Content.Cover.Content;
+                var imgExt = Path.GetExtension(book.Content.Cover.FilePath ?? "").ToLowerInvariant();
+                if (!string.IsNullOrEmpty(imgExt) && imgExt.Length <= 5)
+                    extension = imgExt;
+            }
+            else if (book.Content?.Images?.Local != null && book.Content.Images.Local.Count > 0)
+            {
+                var firstImage = book.Content.Images.Local[0];
+                coverBytes = firstImage.Content;
+                var imgExt = Path.GetExtension(firstImage.FilePath ?? "").ToLowerInvariant();
+                if (!string.IsNullOrEmpty(imgExt) && imgExt.Length <= 5)
+                    extension = imgExt;
             }
             if (coverBytes == null || coverBytes.Length == 0)
                 return null;

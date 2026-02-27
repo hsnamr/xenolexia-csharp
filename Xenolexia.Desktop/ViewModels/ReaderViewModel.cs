@@ -146,51 +146,18 @@ public partial class ReaderViewModel : ViewModelBase
         var chapter = _parsedBook.Chapters[index];
         var raw = chapter.Content;
         var contentToProcess = LooksLikeHtml(raw) ? HtmlToPlainText.ToPlainText(raw) : raw;
-        var chapterForEngine = new Chapter
-        {
-            Id = chapter.Id,
-            Title = chapter.Title,
-            Index = chapter.Index,
-            Content = contentToProcess,
-            WordCount = chapter.WordCount,
-            Href = chapter.Href
-        };
-
-        var languagePair = Book.LanguagePair ?? new LanguagePair { SourceLanguage = Language.En, TargetLanguage = Language.Es };
-        var density = Math.Clamp(Book.WordDensity, 0.05, 0.5);
-        if (density <= 0) density = 0.2;
-
-        ProcessedChapter? processed = null;
-        try
-        {
-            processed = await _translationEngine.ProcessChapterAsync(chapterForEngine, languagePair, Book.ProficiencyLevel, density);
-        }
-        catch
-        {
-            // Fallback to raw content if processing fails
-        }
-
-        var processedCopy = processed;
         var contentCopy = contentToProcess;
         var chapterTitle = chapter.Title;
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
             CurrentChapterIndex = index;
             CurrentChapterTitle = chapterTitle;
-            if (processedCopy != null && processedCopy.ForeignWords.Count > 0)
-            {
-                CurrentChapterContent = processedCopy.ProcessedContent;
-                BuildContentSegments(processedCopy);
-            }
-            else
-            {
-                CurrentChapterContent = string.IsNullOrWhiteSpace(contentCopy)
-                    ? "(This chapter appears to be empty.)"
-                    : contentCopy;
-                ContentSegments.Clear();
-                OnPropertyChanged(nameof(ShowFallbackContent));
-                OnPropertyChanged(nameof(ShowSegments));
-            }
+            ContentSegments.Clear();
+            CurrentChapterContent = string.IsNullOrWhiteSpace(contentCopy)
+                ? "(This chapter appears to be empty.)"
+                : contentCopy;
+            OnPropertyChanged(nameof(ShowFallbackContent));
+            OnPropertyChanged(nameof(ShowSegments));
         });
 
         // Persist progress when chapter changes
