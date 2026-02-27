@@ -5,9 +5,10 @@
              xmlns:converters="using:Xenolexia.Desktop.Converters"
              x:Class="Xenolexia.Desktop.Views.ReaderView"
              x:DataType="vm:ReaderViewModel"
-             x:Name="Root">
+             x:Name="Root"
+             HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
 
-    <Grid RowDefinitions="Auto,*">
+    <Grid RowDefinitions="Auto,*" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
         <!-- Toolbar -->
         <Border Grid.Row="0" Padding="12,8" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
                 BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" BorderThickness="0,0,0,1">

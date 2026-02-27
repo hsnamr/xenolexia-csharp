@@ -39,7 +39,8 @@
                     <ContentControl Content="{Binding AboutView}" />
                 </TabItem>
             </TabControl>
-            <ContentControl Grid.Row="0" Content="{Binding ReaderView}" IsVisible="{Binding IsReaderVisible}" />
+            <ContentControl Grid.Row="0" Content="{Binding ReaderView}" IsVisible="{Binding IsReaderVisible}"
+                           HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" />
         </Grid>
         <!-- Onboarding overlay -->
         <Border IsVisible="{Binding ShowOnboarding}" Background="#E5FFFFFF" ZIndex="1"

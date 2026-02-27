@@ -6,6 +6,7 @@
 
     <ScrollViewer>
         <StackPanel Margin="24" Spacing="16" MaxWidth="500">
+            <Image Source="avares://Xenolexia.Desktop/app_logo.png" Width="80" Height="80" Margin="0,0,0,8" />
             <TextBlock Text="Xenolexia" FontSize="28" FontWeight="Bold" />
             <TextBlock Text="Learn languages through the stories you love." FontSize="14" Opacity="0.9" />
             <TextBlock Text="{Binding Version}" FontSize="12" Opacity="0.8" />

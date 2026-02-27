@@ -23,7 +23,7 @@ class Program
     {
         // Initialize services before starting the app
         await InitializeServicesAsync();
-        
+
         BuildAvaloniaApp()
             .StartWithClassicDesktopLifetime(args);
     }

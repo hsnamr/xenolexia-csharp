@@ -1,0 +1,38 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Xenolexia.Desktop.ViewModels"
+        x:Class="Xenolexia.Desktop.Views.FileOpenDialog"
+        x:DataType="vm:FileOpenDialogViewModel"
+        Title="Open file"
+        Width="600" Height="450"
+        WindowStartupLocation="CenterOwner"
+        MinWidth="400" MinHeight="300">
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="12">
+        <!-- Path bar -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+            <Button Content="←" ToolTip.Tip="Go up" Click="OnGoUpClick" IsEnabled="{Binding CanGoUp}" />
+            <TextBox Text="{Binding CurrentPath, Mode=TwoWay}" Watermark="Path" Margin="0" />
+            <Button Content="Go" Click="OnGoClick" />
+        </StackPanel>
+        <!-- File type filter -->
+        <ComboBox Grid.Row="1" ItemsSource="{Binding FileTypeFilters}" SelectedItem="{Binding SelectedFilter}"
+                  Margin="0,0,0,8" HorizontalAlignment="Left" MinWidth="150" />
+        <!-- File list -->
+        <ListBox Grid.Row="2" ItemsSource="{Binding Items}" SelectedItem="{Binding SelectedItem, Mode=TwoWay}"
+                 DoubleTapped="OnItemDoubleTapped" Margin="0,0,0,12">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{Binding Icon}" FontSize="16" />
+                        <TextBlock Text="{Binding Name}" />
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+        <!-- Buttons -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Content="Cancel" Click="OnCancelClick" />
+            <Button Content="Open" IsDefault="True" Click="OnOpenClick" IsEnabled="{Binding CanOpen}" />
+        </StackPanel>
+    </Grid>
+</Window>

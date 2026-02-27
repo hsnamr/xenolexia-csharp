@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <AvaloniaResource Include="**\*.xaml" />
+    <AvaloniaResource Include="app_logo.png" />
   </ItemGroup>
 
   <ItemGroup>

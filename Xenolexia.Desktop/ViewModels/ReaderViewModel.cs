@@ -184,9 +184,10 @@ public partial class ReaderViewModel : ViewModelBase
             }
             else
             {
-                CurrentChapterContent = contentCopy;
+                CurrentChapterContent = string.IsNullOrWhiteSpace(contentCopy)
+                    ? "(This chapter appears to be empty.)"
+                    : contentCopy;
                 ContentSegments.Clear();
-                // Do not add a single segment: keep ShowFallbackContent true so the view shows CurrentChapterContent in the TextBlock
                 OnPropertyChanged(nameof(ShowFallbackContent));
                 OnPropertyChanged(nameof(ShowSegments));
             }
