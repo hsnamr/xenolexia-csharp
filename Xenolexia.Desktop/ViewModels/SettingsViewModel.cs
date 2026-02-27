@@ -12,6 +12,7 @@ namespace Xenolexia.Desktop.ViewModels;
 public partial class SettingsViewModel : ViewModelBase
 {
     private readonly IStorageService _storageService;
+    private readonly IOfflineDictionaryService _offlineDictionary;
 
     [ObservableProperty]
     private Language _defaultSourceLanguage = Language.En;
@@ -50,7 +51,7 @@ public partial class SettingsViewModel : ViewModelBase
     private bool _hasSaveMessage;
 
     public ObservableCollection<Language> Languages { get; } = new(
-        Enum.GetValues<Language>().Cast<Language>().ToList());
+        Enum.GetValues<Language>().Cast<Language>().Where(l => l != Language.He).ToList());
 
     public ObservableCollection<ProficiencyLevel> ProficiencyLevels { get; } = new(
         Enum.GetValues<ProficiencyLevel>().Cast<ProficiencyLevel>().ToList());
@@ -58,9 +59,10 @@ public partial class SettingsViewModel : ViewModelBase
     public ObservableCollection<ReaderTheme> ReaderThemes { get; } = new(
         Enum.GetValues<ReaderTheme>().Cast<ReaderTheme>().ToList());
 
-    public SettingsViewModel(IStorageService storageService)
+    public SettingsViewModel(IStorageService storageService, IOfflineDictionaryService offlineDictionary)
     {
         _storageService = storageService;
+        _offlineDictionary = offlineDictionary;
     }
 
     public async Task LoadAsync()
@@ -114,6 +116,11 @@ public partial class SettingsViewModel : ViewModelBase
                 HasCompletedOnboarding = existing.HasCompletedOnboarding
             };
             await _storageService.SavePreferencesAsync(prefs);
+            try
+            {
+                await _offlineDictionary.EnsureDictionaryLoadedAsync(DefaultSourceLanguage, DefaultTargetLanguage);
+            }
+            catch { /* best-effort pre-install */ }
             SaveMessage = "Settings saved.";
             HasSaveMessage = true;
         }

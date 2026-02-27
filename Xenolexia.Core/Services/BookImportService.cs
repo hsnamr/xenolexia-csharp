@@ -104,6 +104,10 @@ public class BookImportService : IBookImportService
             }
         }
 
+        var prefs = await _storageService.GetPreferencesAsync();
+        var targetLang = prefs.DefaultTargetLanguage;
+        if (targetLang == Language.En) targetLang = Language.Es; // Ensure different from source for word replacement
+
         var book = new Book
         {
             Id = bookId,
@@ -114,7 +118,7 @@ public class BookImportService : IBookImportService
             Format = format,
             FileSize = fileInfo.Length,
             AddedAt = DateTime.UtcNow,
-            LanguagePair = new LanguagePair { SourceLanguage = Language.En, TargetLanguage = Language.En },
+            LanguagePair = new LanguagePair { SourceLanguage = Language.En, TargetLanguage = targetLang },
             ProficiencyLevel = ProficiencyLevel.Intermediate,
             WordDensity = 0.5,
             Progress = 0,
@@ -197,6 +201,10 @@ public class BookImportService : IBookImportService
         if (string.IsNullOrEmpty(coverPath) && !string.IsNullOrEmpty(meta.CoverUrl))
             coverPath = await _imageProcessingService.DownloadCoverAsync(meta.CoverUrl, bookId, _coversDirectory);
 
+        var prefs = await _storageService.GetPreferencesAsync();
+        var targetLang = prefs.DefaultTargetLanguage;
+        if (targetLang == Language.En) targetLang = Language.Es;
+
         var book = new Book
         {
             Id = bookId,
@@ -207,7 +215,7 @@ public class BookImportService : IBookImportService
             Format = format,
             FileSize = fileInfo.Length,
             AddedAt = DateTime.UtcNow,
-            LanguagePair = new LanguagePair { SourceLanguage = Language.En, TargetLanguage = Language.En },
+            LanguagePair = new LanguagePair { SourceLanguage = Language.En, TargetLanguage = targetLang },
             ProficiencyLevel = ProficiencyLevel.Intermediate,
             WordDensity = 0.5,
             Progress = 0,

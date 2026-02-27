@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Xenolexia.Desktop.ViewModels"
              xmlns:models="using:Xenolexia.Core.Models"
+             xmlns:converters="using:Xenolexia.Desktop.Converters"
              xmlns:svc="using:Xenolexia.Core.Services"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -41,22 +42,37 @@
                                 BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
                                 BorderThickness="1" MinWidth="140" MaxWidth="160">
                             <Border.ContextMenu>
-                                <ContextMenu>
+                                <ContextMenu Tag="{Binding}" Opened="BookContextMenu_Opened">
                                     <MenuItem Header="Remove from library"
                                               Tag="{Binding}"
                                               Click="RemoveFromLibraryMenuItem_Click" />
+                                    <MenuItem Header="Set target language">
+                                        <MenuItem.Items>
+                                            <MenuItem Header="🇪🇸 Spanish" Command="{Binding ((vm:LibraryViewModel)DataContext).SetTargetLanguageCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="Es" />
+                                            <MenuItem Header="🇫🇷 French" Command="{Binding ((vm:LibraryViewModel)DataContext).SetTargetLanguageCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="Fr" />
+                                            <MenuItem Header="🇩🇪 German" Command="{Binding ((vm:LibraryViewModel)DataContext).SetTargetLanguageCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="De" />
+                                            <MenuItem Header="🇮🇹 Italian" Command="{Binding ((vm:LibraryViewModel)DataContext).SetTargetLanguageCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="It" />
+                                            <MenuItem Header="🇵🇹 Portuguese" Command="{Binding ((vm:LibraryViewModel)DataContext).SetTargetLanguageCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="Pt" />
+                                            <MenuItem Header="🇬🇷 Greek" Command="{Binding ((vm:LibraryViewModel)DataContext).SetTargetLanguageCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="El" />
+                                        </MenuItem.Items>
+                                    </MenuItem>
                                 </ContextMenu>
                             </Border.ContextMenu>
                             <StackPanel Spacing="8" Margin="12">
-                                <!-- Cover placeholder (first letter of title) - double-click to open -->
-                                <Border Height="200" CornerRadius="4" Background="#2D3748"
+                                <!-- Cover placeholder with target language flag -->
+                                <Grid>
+                                    <Border Height="200" CornerRadius="4" Background="#2D3748"
                                         DoubleTapped="BookCard_DoubleTapped">
-                                    <TextBlock Text="{Binding Title}" FontSize="48" FontWeight="Bold"
-                                               Foreground="White" HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"
-                                               TextTrimming="CharacterEllipsis" MaxLines="2"
-                                               TextWrapping="Wrap" TextAlignment="Center" />
-                                </Border>
+                                        <TextBlock Text="{Binding Title}" FontSize="48" FontWeight="Bold"
+                                                   Foreground="White" HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis" MaxLines="2"
+                                                   TextWrapping="Wrap" TextAlignment="Center" />
+                                    </Border>
+                                    <TextBlock Text="{Binding LanguagePair, Converter={x:Static converters:LanguageToFlagConverter.Instance}}"
+                                               FontSize="24" HorizontalAlignment="Right" VerticalAlignment="Top"
+                                               Margin="8" />
+                                </Grid>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <Button Content="Read" Command="{Binding ((vm:LibraryViewModel)DataContext).OpenBookCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                             CommandParameter="{Binding}" />
@@ -84,15 +100,29 @@
                                 BorderBrush="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
                                 BorderThickness="1">
                             <Border.ContextMenu>
-                                <ContextMenu>
+                                <ContextMenu Tag="{Binding}" Opened="BookContextMenu_Opened">
                                     <MenuItem Header="Remove from library" Tag="{Binding}" Click="RemoveFromLibraryMenuItem_Click" />
+                                    <MenuItem Header="Set target language">
+                                        <MenuItem.Items>
+                                            <MenuItem Header="🇪🇸 Spanish" Command="{Binding ((vm:LibraryViewModel)DataContext).SetTargetLanguageCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="Es" />
+                                            <MenuItem Header="🇫🇷 French" Command="{Binding ((vm:LibraryViewModel)DataContext).SetTargetLanguageCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="Fr" />
+                                            <MenuItem Header="🇩🇪 German" Command="{Binding ((vm:LibraryViewModel)DataContext).SetTargetLanguageCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="De" />
+                                            <MenuItem Header="🇮🇹 Italian" Command="{Binding ((vm:LibraryViewModel)DataContext).SetTargetLanguageCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="It" />
+                                            <MenuItem Header="🇵🇹 Portuguese" Command="{Binding ((vm:LibraryViewModel)DataContext).SetTargetLanguageCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="Pt" />
+                                            <MenuItem Header="🇬🇷 Greek" Command="{Binding ((vm:LibraryViewModel)DataContext).SetTargetLanguageCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="El" />
+                                        </MenuItem.Items>
+                                    </MenuItem>
                                 </ContextMenu>
                             </Border.ContextMenu>
                             <Grid ColumnDefinitions="Auto,*,Auto" DoubleTapped="BookCard_DoubleTapped">
-                                <Border Width="48" Height="72" CornerRadius="4" Background="#2D3748" Grid.Column="0" Margin="0,0,12,0">
-                                    <TextBlock Text="{Binding Title}" FontSize="10" Foreground="White" HorizontalAlignment="Center"
-                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxLines="2" TextWrapping="Wrap" TextAlignment="Center" />
-                                </Border>
+                                <Grid Grid.Column="0" Margin="0,0,12,0">
+                                    <Border Width="48" Height="72" CornerRadius="4" Background="#2D3748">
+                                        <TextBlock Text="{Binding Title}" FontSize="10" Foreground="White" HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxLines="2" TextWrapping="Wrap" TextAlignment="Center" />
+                                    </Border>
+                                    <TextBlock Text="{Binding LanguagePair, Converter={x:Static converters:LanguageToFlagConverter.Instance}}"
+                                               FontSize="14" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="2" />
+                                </Grid>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                     <TextBlock Text="{Binding Author}" FontSize="12" Opacity="0.8" TextTrimming="CharacterEllipsis" />

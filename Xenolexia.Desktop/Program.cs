@@ -45,8 +45,10 @@ class Program
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             ".xenolexia");
         var databasePath = Path.Combine(xenolexiaDir, "xenolexia.litedb");
+        var dictionariesDir = Path.Combine(xenolexiaDir, "dictionaries");
         
         Directory.CreateDirectory(xenolexiaDir);
+        Directory.CreateDirectory(dictionariesDir);
 
         var storageService = new LiteDbStorageService(databasePath);
         await storageService.InitializeAsync();
@@ -82,10 +84,15 @@ class Program
 
         var filePickerService = new FilePickerService(GetMainWindow);
 
+        var offlineDictionary = new OfflineDictionaryService(dictionariesDir);
+        var replacementEngine = new ReplacementEngine(offlineDictionary);
+
         // Create service provider (simplified - in production use DI container)
         ServiceProvider = new XenolexiaServiceProvider(
             storageService,
             new TranslationService(),
+            offlineDictionary,
+            replacementEngine,
             new BookParserService(),
             new BookDownloadService(booksDir),
             new ImageProcessingService(),
@@ -103,6 +110,8 @@ public class XenolexiaServiceProvider : IServiceProvider
     public XenolexiaServiceProvider(
         IStorageService storageService,
         ITranslationService translationService,
+        IOfflineDictionaryService offlineDictionaryService,
+        ReplacementEngine replacementEngine,
         IBookParserService bookParserService,
         IBookDownloadService bookDownloadService,
         IImageProcessingService imageProcessingService,
@@ -112,6 +121,8 @@ public class XenolexiaServiceProvider : IServiceProvider
     {
         _services[typeof(IStorageService)] = storageService;
         _services[typeof(ITranslationService)] = translationService;
+        _services[typeof(IOfflineDictionaryService)] = offlineDictionaryService;
+        _services[typeof(ReplacementEngine)] = replacementEngine;
         _services[typeof(IBookParserService)] = bookParserService;
         _services[typeof(IBookDownloadService)] = bookDownloadService;
         _services[typeof(IImageProcessingService)] = imageProcessingService;

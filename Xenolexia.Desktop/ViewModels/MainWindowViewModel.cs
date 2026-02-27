@@ -16,7 +16,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IStorageService _storageService;
     private readonly IExportService _exportService;
     private readonly IBookParserService _bookParserService;
-    private readonly ITranslationService _translationService;
+    private readonly ReplacementEngine _replacementEngine;
+    private readonly IOfflineDictionaryService _offlineDictionary;
 
     private readonly ReviewViewModel _reviewViewModel;
     private readonly SettingsViewModel _settingsViewModel;
@@ -28,10 +29,11 @@ public partial class MainWindowViewModel : ViewModelBase
         _storageService = (IStorageService)serviceProvider.GetService(typeof(IStorageService))!;
         _exportService = (IExportService)serviceProvider.GetService(typeof(IExportService))!;
         _bookParserService = (IBookParserService)serviceProvider.GetService(typeof(IBookParserService))!;
-        _translationService = (ITranslationService)serviceProvider.GetService(typeof(ITranslationService))!;
+        _replacementEngine = (ReplacementEngine)serviceProvider.GetService(typeof(ReplacementEngine))!;
+        _offlineDictionary = (IOfflineDictionaryService)serviceProvider.GetService(typeof(IOfflineDictionaryService))!;
 
         _reviewViewModel = new ReviewViewModel(_storageService);
-        _settingsViewModel = new SettingsViewModel(_storageService);
+        _settingsViewModel = new SettingsViewModel(_storageService, _offlineDictionary);
         _statisticsViewModel = new StatisticsViewModel(_storageService);
 
         LibraryView = new LibraryView();
@@ -103,7 +105,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async void OnOpenBookRequested(Book book)
     {
-        var vm = new ReaderViewModel(book, _bookParserService, _translationService, _storageService);
+        var vm = new ReaderViewModel(book, _bookParserService, _replacementEngine, _storageService);
         var view = new ReaderView { DataContext = vm };
         ReaderView = view;
         IsReaderVisible = true;

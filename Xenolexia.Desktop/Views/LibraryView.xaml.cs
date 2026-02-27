@@ -1,7 +1,9 @@
+using System;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using Avalonia.VisualTree;
 using Xenolexia.Core.Models;
 using Xenolexia.Desktop.ViewModels;
 
@@ -71,6 +73,16 @@ public partial class LibraryView : UserControl
         if (sender is MenuItem menuItem && menuItem.Tag is Book book && DataContext is LibraryViewModel vm)
         {
             vm.DeleteBookCommand.Execute(book);
+        }
+    }
+
+    private void BookContextMenu_Opened(object? sender, RoutedEventArgs e)
+    {
+        if (sender is ContextMenu cm && cm.PlacementTarget is Border border && border.DataContext is Book book)
+        {
+            var ic = border.FindAncestorOfType<ItemsControl>();
+            if (ic?.DataContext is LibraryViewModel vm)
+                vm.ContextMenuBook = book;
         }
     }
 }

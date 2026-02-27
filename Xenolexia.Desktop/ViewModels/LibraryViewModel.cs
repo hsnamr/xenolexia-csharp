@@ -16,6 +16,7 @@ public partial class LibraryViewModel : ViewModelBase
     private readonly IBookDownloadService _bookDownloadService;
     private readonly IBookImportService _bookImportService;
     private readonly IFilePickerService _filePickerService;
+    private readonly IOfflineDictionaryService _offlineDictionary;
 
     [ObservableProperty]
     private ObservableCollection<Book> _books = new();
@@ -70,6 +71,10 @@ public partial class LibraryViewModel : ViewModelBase
     /// <summary>Instance access for XAML binding.</summary>
     public EbookSource[] OnlineSources => OnlineSourceList;
 
+    /// <summary>Target languages for per-book selection (excludes Hebrew).</summary>
+    public static Language[] TargetLanguageList { get; } =
+        Enum.GetValues<Language>().Where(l => l != Language.He).ToArray();
+
     public LibraryViewModel()
     {
         var sp = Program.ServiceProvider ?? throw new InvalidOperationException("Services not initialized");
@@ -77,6 +82,7 @@ public partial class LibraryViewModel : ViewModelBase
         _bookDownloadService = (IBookDownloadService)sp.GetService(typeof(IBookDownloadService))!;
         _bookImportService = (IBookImportService)sp.GetService(typeof(IBookImportService))!;
         _filePickerService = (IFilePickerService)sp.GetService(typeof(IFilePickerService))!;
+        _offlineDictionary = (IOfflineDictionaryService)sp.GetService(typeof(IOfflineDictionaryService))!;
     }
 
     [RelayCommand]
@@ -285,6 +291,31 @@ public partial class LibraryViewModel : ViewModelBase
         {
             await _storageService.DeleteBookAsync(book.Id);
             Books.Remove(book);
+        }
+        catch (Exception ex)
+        {
+            ImportError = ex.Message;
+        }
+    }
+
+    /// <summary>Book for which the context menu was opened; set before showing submenu.</summary>
+    [ObservableProperty]
+    private Book? _contextMenuBook;
+
+    [RelayCommand]
+    private async Task SetTargetLanguageAsync(object? parameter)
+    {
+        var book = ContextMenuBook;
+        var target = parameter is Language l ? l : (parameter is string s && Enum.TryParse<Language>(s, true, out var parsed) ? parsed : Language.Es);
+        if (book == null) return;
+
+        try
+        {
+            book.LanguagePair ??= new LanguagePair { SourceLanguage = Language.En, TargetLanguage = Language.Es };
+            book.LanguagePair.SourceLanguage = Language.En;
+            book.LanguagePair.TargetLanguage = target;
+            await _storageService.UpdateBookAsync(book);
+            await _offlineDictionary.EnsureDictionaryLoadedAsync(Language.En, target);
         }
         catch (Exception ex)
         {

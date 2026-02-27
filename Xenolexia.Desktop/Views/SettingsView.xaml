@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Xenolexia.Desktop.ViewModels"
              xmlns:models="using:Xenolexia.Core.Models"
+             xmlns:converters="using:Xenolexia.Desktop.Converters"
              x:Class="Xenolexia.Desktop.Views.SettingsView"
              x:DataType="vm:SettingsViewModel">
 
@@ -15,9 +16,21 @@
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Source language" Margin="0,0,0,4" />
                 <TextBlock Grid.Row="0" Grid.Column="1" Text="Target language" Margin="0,0,0,4" />
                 <ComboBox Grid.Row="1" Grid.Column="0" ItemsSource="{Binding Languages}"
-                          SelectedItem="{Binding DefaultSourceLanguage}" Margin="0,0,8,0" />
+                          SelectedItem="{Binding DefaultSourceLanguage}" Margin="0,0,8,0">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate DataType="models:Language">
+                            <TextBlock Text="{Binding Converter={x:Static converters:LanguageToDisplayNameConverter.Instance}}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
                 <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding Languages}"
-                          SelectedItem="{Binding DefaultTargetLanguage}" Margin="8,0,0,0" />
+                          SelectedItem="{Binding DefaultTargetLanguage}" Margin="8,0,0,0">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate DataType="models:Language">
+                            <TextBlock Text="{Binding Converter={x:Static converters:LanguageToDisplayNameConverter.Instance}}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
             </Grid>
 
             <!-- Proficiency -->

@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Xenolexia.Desktop.ViewModels"
              xmlns:models="using:Xenolexia.Core.Models"
+             xmlns:converters="using:Xenolexia.Desktop.Converters"
              x:Class="Xenolexia.Desktop.Views.OnboardingView"
              x:DataType="vm:OnboardingViewModel">
 
@@ -21,11 +22,23 @@
                            TextWrapping="Wrap" IsVisible="{Binding IsWelcomeStep}" />
                 <StackPanel IsVisible="{Binding IsStepSourceLang}" Spacing="8">
                     <TextBlock Foreground="#1A1A1A" Text="Source language (language you're reading in)" />
-                    <ComboBox ItemsSource="{Binding Languages}" SelectedItem="{Binding DefaultSourceLanguage}" MinWidth="220" HorizontalAlignment="Left" />
+                    <ComboBox ItemsSource="{Binding Languages}" SelectedItem="{Binding DefaultSourceLanguage}" MinWidth="220" HorizontalAlignment="Left">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate DataType="models:Language">
+                                <TextBlock Foreground="#1A1A1A" Text="{Binding Converter={x:Static converters:LanguageToDisplayNameConverter.Instance}}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
                 </StackPanel>
                 <StackPanel IsVisible="{Binding IsStepTargetLang}" Spacing="8">
                     <TextBlock Foreground="#1A1A1A" Text="Target language (language you're learning)" />
-                    <ComboBox ItemsSource="{Binding Languages}" SelectedItem="{Binding DefaultTargetLanguage}" MinWidth="220" HorizontalAlignment="Left" />
+                    <ComboBox ItemsSource="{Binding Languages}" SelectedItem="{Binding DefaultTargetLanguage}" MinWidth="220" HorizontalAlignment="Left">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate DataType="models:Language">
+                                <TextBlock Foreground="#1A1A1A" Text="{Binding Converter={x:Static converters:LanguageToDisplayNameConverter.Instance}}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
                 </StackPanel>
                 <StackPanel IsVisible="{Binding IsStepProficiency}" Spacing="8">
                     <TextBlock Foreground="#1A1A1A" Text="Proficiency level" />

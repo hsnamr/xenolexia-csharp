@@ -38,7 +38,7 @@ public partial class OnboardingViewModel : ViewModelBase
     private double _defaultWordDensity = 0.3;
 
     public ObservableCollection<Language> Languages { get; } = new(
-        Enum.GetValues<Language>().Cast<Language>().ToList());
+        Enum.GetValues<Language>().Cast<Language>().Where(l => l != Language.He).ToList());
 
     public ObservableCollection<ProficiencyLevel> ProficiencyLevels { get; } = new(
         Enum.GetValues<ProficiencyLevel>().Cast<ProficiencyLevel>().ToList());

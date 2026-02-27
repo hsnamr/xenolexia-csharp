@@ -13,7 +13,7 @@ namespace Xenolexia.Desktop.ViewModels;
 public partial class ReaderViewModel : ViewModelBase
 {
     private readonly IBookParserService _parser;
-    private readonly TranslationEngine _translationEngine;
+    private readonly ReplacementEngine _replacementEngine;
     private readonly IStorageService _storageService;
     private readonly string _filePath;
     private ParsedBook? _parsedBook;
@@ -65,11 +65,11 @@ public partial class ReaderViewModel : ViewModelBase
 
     public Book Book { get; }
 
-    public ReaderViewModel(Book book, IBookParserService parser, ITranslationService translationService, IStorageService storageService)
+    public ReaderViewModel(Book book, IBookParserService parser, ReplacementEngine replacementEngine, IStorageService storageService)
     {
         Book = book;
         _parser = parser;
-        _translationEngine = new TranslationEngine(translationService);
+        _replacementEngine = replacementEngine;
         _storageService = storageService;
         _filePath = book.FilePath;
     }
@@ -145,19 +145,56 @@ public partial class ReaderViewModel : ViewModelBase
 
         var chapter = _parsedBook.Chapters[index];
         var raw = chapter.Content;
-        var contentToProcess = LooksLikeHtml(raw) ? HtmlToPlainText.ToPlainText(raw) : raw;
-        var contentCopy = contentToProcess;
+        // Pass HTML directly to ReplacementEngine (aligns with TypeScript processContentOffline)
+        var contentToProcess = raw;
         var chapterTitle = chapter.Title;
+
+        var prefs = await _storageService.GetPreferencesAsync();
+        var bookPair = Book.LanguagePair ?? new LanguagePair { SourceLanguage = Language.En, TargetLanguage = Language.Es };
+        var languagePair = bookPair.SourceLanguage != bookPair.TargetLanguage
+            ? bookPair
+            : new LanguagePair { SourceLanguage = prefs.DefaultSourceLanguage, TargetLanguage = prefs.DefaultTargetLanguage };
+        var chapterForEngine = new Chapter
+        {
+            Id = chapter.Id,
+            Title = chapter.Title,
+            Index = chapter.Index,
+            Content = contentToProcess,
+            WordCount = chapter.WordCount,
+            Href = chapter.Href
+        };
+
+        ProcessedChapter? processed = null;
+        try
+        {
+            processed = await _replacementEngine.ProcessChapterAsync(chapterForEngine, languagePair);
+        }
+        catch
+        {
+            // Fallback to plain content if replacement fails
+        }
+
+        var processedCopy = processed;
+        var contentCopy = contentToProcess;
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
             CurrentChapterIndex = index;
             CurrentChapterTitle = chapterTitle;
-            ContentSegments.Clear();
-            CurrentChapterContent = string.IsNullOrWhiteSpace(contentCopy)
-                ? "(This chapter appears to be empty.)"
-                : contentCopy;
-            OnPropertyChanged(nameof(ShowFallbackContent));
-            OnPropertyChanged(nameof(ShowSegments));
+            if (processedCopy != null && processedCopy.ForeignWords.Count > 0)
+            {
+                CurrentChapterContent = processedCopy.ProcessedContent;
+                BuildContentSegments(processedCopy);
+            }
+            else
+            {
+                ContentSegments.Clear();
+                var displayContent = string.IsNullOrWhiteSpace(contentCopy)
+                    ? "(This chapter appears to be empty.)"
+                    : (LooksLikeHtml(contentCopy) ? HtmlToPlainText.ToPlainText(contentCopy) : contentCopy);
+                CurrentChapterContent = displayContent;
+                OnPropertyChanged(nameof(ShowFallbackContent));
+                OnPropertyChanged(nameof(ShowSegments));
+            }
         });
 
         // Persist progress when chapter changes
