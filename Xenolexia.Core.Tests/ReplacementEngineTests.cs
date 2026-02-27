@@ -47,6 +47,31 @@ public class ReplacementEngineTests
     }
 
     [Fact]
+    public async Task ProcessChapterAsync_ReplacesWords_WithGreekDictionary()
+    {
+        var dict = new OfflineDictionaryService(Path.Combine(Path.GetTempPath(), "xenolexia-test-" + Guid.NewGuid().ToString("N")));
+        await dict.EnsureDictionaryLoadedAsync(Language.En, Language.El);
+
+        var engine = new ReplacementEngine(dict);
+        var chapter = new Chapter
+        {
+            Id = "ch1",
+            Title = "Test",
+            Index = 0,
+            Content = "The cat and the dog are in the house. The book is good.",
+            WordCount = 12,
+            Href = ""
+        };
+        var pair = new LanguagePair { SourceLanguage = Language.En, TargetLanguage = Language.El };
+
+        var result = await engine.ProcessChapterAsync(chapter, pair);
+
+        Assert.NotNull(result);
+        Assert.True(result.ForeignWords.Count > 0, "Expected Greek replacements (the, cat, and, dog, etc.)");
+        Assert.NotEqual(chapter.Content, result.ProcessedContent);
+    }
+
+    [Fact]
     public async Task ProcessChapterAsync_ReturnsPlainText_WhenSourceEqualsTarget()
     {
         var dict = CreateMockDictionary();

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Net.Http;
 using System.Reflection;
 using System.Text.Json;
 using Xenolexia.Core.Models;
@@ -7,12 +8,17 @@ namespace Xenolexia.Core.Services;
 
 /// <summary>
 /// Offline dictionary service. Dictionaries are stored in app data and auto-installed
-/// when the user selects a target language. Uses bundled JSON files as fallback.
+/// when the user selects a target language. Uses bundled JSON first, then tries download.
 /// </summary>
 public class OfflineDictionaryService : IOfflineDictionaryService
 {
     private readonly string _dictionariesDir;
     private readonly ConcurrentDictionary<string, Dictionary<string, string>> _loaded = new();
+    private static readonly HttpClient HttpClient = new() { Timeout = TimeSpan.FromSeconds(30) };
+
+    /// <summary>Base URL for downloading dictionaries when not bundled. Set to null to disable download.</summary>
+    public static string? DictionaryDownloadBaseUrl { get; set; } =
+        "https://raw.githubusercontent.com/xenolexia/xenolexia-dictionaries/main/";
 
     public OfflineDictionaryService(string? appDataPath = null)
     {
@@ -34,6 +40,8 @@ public class OfflineDictionaryService : IOfflineDictionaryService
         if (!File.Exists(filePath))
         {
             await CopyBundledDictionaryAsync(sourceLanguage, targetLanguage, filePath);
+            if (!File.Exists(filePath))
+                await TryDownloadDictionaryAsync(sourceLanguage, targetLanguage, filePath);
         }
 
         if (File.Exists(filePath))
@@ -46,7 +54,7 @@ public class OfflineDictionaryService : IOfflineDictionaryService
         }
         else
         {
-            // Embedded copy failed (e.g. resource not found); try loading directly from assembly
+            // Embedded copy failed; try loading directly from assembly, then from memory if we downloaded
             _loaded[key] = await LoadFromEmbeddedAsync(sourceLanguage, targetLanguage)
                 ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         }
@@ -91,6 +99,28 @@ public class OfflineDictionaryService : IOfflineDictionaryService
                 return assembly.GetManifestResourceStream(name);
         }
         return null;
+    }
+
+    private static async Task TryDownloadDictionaryAsync(Language source, Language target, string destPath)
+    {
+        var url = DictionaryDownloadBaseUrl;
+        if (string.IsNullOrEmpty(url)) return;
+
+        var fileName = $"{source.ToString().ToLowerInvariant()}-{target.ToString().ToLowerInvariant()}.json";
+        var fullUrl = url.TrimEnd('/') + "/" + fileName;
+        try
+        {
+            var response = await HttpClient.GetAsync(fullUrl);
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                await File.WriteAllTextAsync(destPath, json);
+            }
+        }
+        catch
+        {
+            // Download failed; user will need bundled dict or manual install
+        }
     }
 
     public WordEntry? Lookup(string word, Language sourceLanguage, Language targetLanguage)
