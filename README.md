@@ -111,5 +111,4 @@ See **FEATURES.md** for a full feature-by-feature roadmap and library choices.
 ---
 
 ## License
-
-MIT — see [LICENSE](LICENSE).
+GNU Affero General Public License v3.0
